@@ -201,14 +201,21 @@ export type Database = {
           test_link_id: string
           live_session_id: string | null
           org_id: string
+          project_id: string | null
           uploader_user_id: string | null
-          status: 'uploading' | 'processing' | 'ready' | 'failed'
+          status: 'recording' | 'uploading' | 'processing' | 'completed' | 'ready' | 'failed'
           duration_ms: number | null
           width: number | null
           height: number | null
           visibility: 'private' | 'unlisted'
-          object_path: string
+          object_path: string | null
           thumbnail_path: string | null
+          total_parts: number | null
+          total_bytes: number | null
+          duration_sec: number | null
+          mime_type: string | null
+          codecs: string | null
+          manifest_url: string | null
           created_at: string
           updated_at: string
         }
@@ -217,14 +224,21 @@ export type Database = {
           test_link_id: string
           live_session_id?: string | null
           org_id: string
+          project_id?: string | null
           uploader_user_id?: string | null
-          status?: 'uploading' | 'processing' | 'ready' | 'failed'
+          status?: 'recording' | 'uploading' | 'processing' | 'completed' | 'ready' | 'failed'
           duration_ms?: number | null
           width?: number | null
           height?: number | null
           visibility?: 'private' | 'unlisted'
-          object_path: string
+          object_path?: string | null
           thumbnail_path?: string | null
+          total_parts?: number | null
+          total_bytes?: number | null
+          duration_sec?: number | null
+          mime_type?: string | null
+          codecs?: string | null
+          manifest_url?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -233,14 +247,21 @@ export type Database = {
           test_link_id?: string
           live_session_id?: string | null
           org_id?: string
+          project_id?: string | null
           uploader_user_id?: string | null
-          status?: 'uploading' | 'processing' | 'ready' | 'failed'
+          status?: 'recording' | 'uploading' | 'processing' | 'completed' | 'ready' | 'failed'
           duration_ms?: number | null
           width?: number | null
           height?: number | null
           visibility?: 'private' | 'unlisted'
-          object_path?: string
+          object_path?: string | null
           thumbnail_path?: string | null
+          total_parts?: number | null
+          total_bytes?: number | null
+          duration_sec?: number | null
+          mime_type?: string | null
+          codecs?: string | null
+          manifest_url?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -250,7 +271,8 @@ export type Database = {
           id: string
           recording_id: string
           part_index: number
-          object_path: string
+          storage_path: string
+          mime_type: string | null
           size_bytes: number
           created_at: string
           updated_at: string
@@ -259,7 +281,8 @@ export type Database = {
           id?: string
           recording_id: string
           part_index: number
-          object_path: string
+          storage_path: string
+          mime_type?: string | null
           size_bytes: number
           created_at?: string
           updated_at?: string
@@ -268,7 +291,8 @@ export type Database = {
           id?: string
           recording_id?: string
           part_index?: number
-          object_path?: string
+          storage_path?: string
+          mime_type?: string | null
           size_bytes?: number
           created_at?: string
           updated_at?: string

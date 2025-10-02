@@ -3,8 +3,8 @@
 ## Overview
 This document tracks the implementation progress of the User Testing Platform based on the product spec.
 
-**Last Updated**: October 1, 2025
-**Overall Progress**: ~70% (Foundation + UI + Core Features + Recording Infrastructure complete)
+**Last Updated**: October 2, 2025
+**Overall Progress**: ~80% (Foundation + UI + Core Features + Recording + Playback complete)
 
 ---
 
@@ -217,22 +217,29 @@ This document tracks the implementation progress of the User Testing Platform ba
 
 ---
 
-## 📋 Phase 4: Playback System (0%)
+## ✅ Phase 4: Playback System (COMPLETE)
 
 ### MSE Player
-- [ ] Media Source Extensions setup
-- [ ] Sequential segment loading
-- [ ] Buffering management
-- [ ] Playback controls
-- [ ] Timeline scrubber
-- [ ] Seeking support
+- [x] Media Source Extensions setup
+- [x] Sequential segment loading
+- [x] Buffering management
+- [x] Playback controls
+- [x] Timeline scrubber
+- [x] Seeking support
 
 ### Recording Player Page
-- [ ] Video player component
-- [ ] Comments sidebar
-- [ ] Timeline markers
-- [ ] Metadata display
-- [ ] Download functionality
+- [x] Video player component
+- [x] Comments sidebar (placeholder)
+- [x] Metadata display
+- [x] Download functionality (placeholder)
+- [x] Navigation from project detail
+
+### Components Built
+- [x] `useMSEPlayer` hook - MSE implementation with segment loading
+- [x] `VideoPlayer` component - Full playback controls (play/pause/seek/volume/fullscreen)
+- [x] `RecordingPlayer` page - Complete player page with metadata sidebar
+- [x] `sign-playback-url` Edge Function - Signed URL generation for playback
+- [x] ProjectDetail recordings tab - List and navigate to recordings
 
 ---
 
@@ -301,7 +308,7 @@ This document tracks the implementation progress of the User Testing Platform ba
 
 ---
 
-## 📋 Supabase Edge Functions (25%)
+## 📋 Supabase Edge Functions (38%)
 
 Implemented in `supabase/functions/`:
 
@@ -311,7 +318,7 @@ Implemented in `supabase/functions/`:
 - [x] `finalize-recording` - Post-processing workflow ✅
 - [ ] `start-live-session` - Create session with viewer cap
 - [ ] `end-live-session` - Close session cleanup
-- [ ] `sign-playback-url` - Generate signed GET URLs
+- [x] `sign-playback-url` - Generate signed GET URLs ✅
 - [ ] `list-recordings` - Paginated recording list
 
 ---
@@ -376,16 +383,20 @@ All core components built and integrated.
 6. ~~**Medium**: Edge Functions for upload/finalize~~ ✅ COMPLETE
    - ~~issue-upload-url for signed PUT URLs~~ ✅
    - ~~finalize-recording for post-processing~~ ✅
-7. **High**: Setup Supabase project and deploy Edge Functions
-   - Create storage bucket 'recordings'
-   - Deploy Edge Functions
-   - Apply database migrations
-   - Configure RLS policies for storage
-8. **Medium**: MSE player implementation
-   - Sequential segment loading
-   - Timeline controls
-   - Comments integration
-9. **Low**: WebRTC live streaming
+7. ~~**High**: Setup Supabase project and deploy Edge Functions~~ ✅ COMPLETE
+   - ~~Create storage bucket 'recordings'~~ ✅
+   - ~~Deploy Edge Functions~~ ✅
+   - ~~Apply database migrations~~ ✅
+   - ~~Configure RLS policies for storage~~ ✅
+8. ~~**Medium**: MSE player implementation~~ ✅ COMPLETE
+   - ~~Sequential segment loading~~ ✅
+   - ~~Timeline controls~~ ✅
+   - ~~sign-playback-url Edge Function~~ ✅
+   - ~~Recordings list in ProjectDetail~~ ✅
+9. **Medium**: WebRTC live streaming
+   - Signaling via Supabase Realtime
+   - Broadcaster/Viewer implementation
+   - LiveViewer page
 10. **Low**: Comments system
 11. **Low**: Observability & cleanup
 
