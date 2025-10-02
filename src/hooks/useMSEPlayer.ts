@@ -157,13 +157,29 @@ export function useMSEPlayer({
     const video = videoRef.current
     if (!video || !manifest) return
 
+    // Reset state
+    currentSegmentIndexRef.current = 0
+    segmentQueueRef.current = []
+    isAppendingRef.current = false
+    sourceBufferRef.current = null
+
     const mediaSource = new MediaSource()
     mediaSourceRef.current = mediaSource
 
     const videoUrl = URL.createObjectURL(mediaSource)
     video.src = videoUrl
 
+    let isSetupComplete = false
+    let isCancelled = false
+
     const handleSourceOpen = () => {
+      // Prevent double execution
+      if (isSetupComplete || isCancelled || mediaSource.readyState !== 'open') {
+        return
+      }
+
+      isSetupComplete = true
+
       try {
         // Create SourceBuffer with the recording's MIME type
         const mimeType = `${manifest.mimeType.split(';')[0]}; codecs="${manifest.codecs}"`
@@ -227,15 +243,33 @@ export function useMSEPlayer({
     video.addEventListener('ended', handleEnded)
 
     return () => {
+      isCancelled = true
+      mediaSource.removeEventListener('sourceopen', handleSourceOpen)
       video.removeEventListener('ended', handleEnded)
-      if (mediaSource.readyState === 'open') {
+
+      // Pause video to prevent play() interruption errors
+      video.pause()
+
+      // Clean up MediaSource
+      if (sourceBufferRef.current && !sourceBufferRef.current.updating) {
         try {
-          mediaSource.endOfStream()
-        } catch (e) {
+          if (mediaSource.readyState === 'open') {
+            mediaSource.endOfStream()
+          }
+        } catch {
           // Ignore errors when cleaning up
         }
       }
+
+      // Clean up video src and URL
+      video.removeAttribute('src')
+      video.load()
       URL.revokeObjectURL(videoUrl)
+
+      // Clear refs
+      mediaSourceRef.current = null
+      sourceBufferRef.current = null
+      segmentQueueRef.current = []
     }
   }, [manifest, loadNextSegment, appendNextChunk, onError, onEnded])
 

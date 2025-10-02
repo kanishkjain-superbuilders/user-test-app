@@ -203,7 +203,13 @@ export type Database = {
           org_id: string
           project_id: string | null
           uploader_user_id: string | null
-          status: 'recording' | 'uploading' | 'processing' | 'completed' | 'ready' | 'failed'
+          status:
+            | 'recording'
+            | 'uploading'
+            | 'processing'
+            | 'completed'
+            | 'ready'
+            | 'failed'
           duration_ms: number | null
           width: number | null
           height: number | null
@@ -226,7 +232,13 @@ export type Database = {
           org_id: string
           project_id?: string | null
           uploader_user_id?: string | null
-          status?: 'recording' | 'uploading' | 'processing' | 'completed' | 'ready' | 'failed'
+          status?:
+            | 'recording'
+            | 'uploading'
+            | 'processing'
+            | 'completed'
+            | 'ready'
+            | 'failed'
           duration_ms?: number | null
           width?: number | null
           height?: number | null
@@ -249,7 +261,13 @@ export type Database = {
           org_id?: string
           project_id?: string | null
           uploader_user_id?: string | null
-          status?: 'recording' | 'uploading' | 'processing' | 'completed' | 'ready' | 'failed'
+          status?:
+            | 'recording'
+            | 'uploading'
+            | 'processing'
+            | 'completed'
+            | 'ready'
+            | 'failed'
           duration_ms?: number | null
           width?: number | null
           height?: number | null

@@ -1,14 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import {
-  Play,
-  Pause,
-  Volume2,
-  VolumeX,
-  Maximize,
-  Loader2,
-} from 'lucide-react'
+import { Play, Pause, Volume2, VolumeX, Maximize, Loader2 } from 'lucide-react'
 import { formatDuration } from '@/lib/recording-utils'
 import { useMSEPlayer } from '@/hooks/useMSEPlayer'
 import type { RecordingManifest } from '@/lib/recording-utils'
@@ -144,11 +137,14 @@ export function VideoPlayer({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   if (error) {
     return (
-      <div className={`bg-black rounded-lg flex items-center justify-center ${className}`}>
+      <div
+        className={`bg-black rounded-lg flex items-center justify-center ${className}`}
+      >
         <div className="text-center text-white p-8">
           <p className="text-xl font-semibold mb-2">Failed to load video</p>
           <p className="text-sm text-red-400">{error.message}</p>
@@ -164,11 +160,7 @@ export function VideoPlayer({
     >
       {/* Video Element */}
       <div className="relative aspect-video bg-black">
-        <video
-          ref={videoRef}
-          className="w-full h-full"
-          onClick={togglePlay}
-        />
+        <video ref={videoRef} className="w-full h-full" onClick={togglePlay} />
 
         {/* Loading Overlay */}
         {(isBuffering || !isReady) && (

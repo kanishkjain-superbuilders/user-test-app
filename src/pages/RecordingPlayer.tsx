@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { VideoPlayer } from '@/components/VideoPlayer'
 import { Button } from '@/components/ui/button'
@@ -29,6 +29,7 @@ export default function RecordingPlayer() {
     }
 
     loadRecording()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   const loadRecording = async () => {

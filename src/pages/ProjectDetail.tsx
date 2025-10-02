@@ -18,7 +18,7 @@ import {
   Play,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { formatDuration, formatBytes } from '@/lib/recording-utils'
+import { formatDuration } from '@/lib/recording-utils'
 import type { Database } from '@/lib/database.types'
 
 type Recording = Database['public']['Tables']['recordings']['Row']
@@ -51,6 +51,7 @@ export default function ProjectDetail() {
     return () => {
       setCurrentProject(null)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, projects, setCurrentProject, loadTestLinks])
 
   const loadRecordings = async () => {
@@ -62,17 +63,17 @@ export default function ProjectDetail() {
       // Get all test links for this project first
       const { data: projectTestLinks, error: testLinksError } = await supabase
         .from('test_links')
-        .select('id')
+        .select<'id', { id: string }>('id')
         .eq('project_id', projectId)
 
       if (testLinksError) throw testLinksError
 
-      const testLinkIds = projectTestLinks.map((tl) => tl.id)
-
-      if (testLinkIds.length === 0) {
+      if (!projectTestLinks || projectTestLinks.length === 0) {
         setRecordings([])
         return
       }
+
+      const testLinkIds = projectTestLinks.map((tl) => tl.id)
 
       // Get recordings for these test links
       const { data: recordingsData, error: recordingsError } = await supabase
@@ -314,7 +315,9 @@ export default function ProjectDetail() {
                     <Card
                       key={recording.id}
                       className="cursor-pointer hover:bg-accent transition-colors"
-                      onClick={() => navigate(`/app/recordings/${recording.id}`)}
+                      onClick={() =>
+                        navigate(`/app/recordings/${recording.id}`)
+                      }
                     >
                       <CardHeader>
                         <div className="flex items-start justify-between">
