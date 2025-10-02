@@ -1,0 +1,146 @@
+@import 'tailwindcss';
+
+:root {
+  /* Colors - Modern Purple/Blue Theme */
+  --background: 0 0% 100%;
+  --foreground: 224 71% 4%;
+  --card: 0 0% 100%;
+  --card-foreground: 224 71% 4%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 224 71% 4%;
+
+  /* Primary - Vibrant Purple */
+  --primary: 262 83% 58%;
+  --primary-foreground: 0 0% 100%;
+
+  /* Secondary - Soft Purple */
+  --secondary: 270 60% 98%;
+  --secondary-foreground: 262 83% 58%;
+
+  /* Muted */
+  --muted: 270 20% 96%;
+  --muted-foreground: 215 16% 47%;
+
+  /* Accent - Blue */
+  --accent: 217 91% 60%;
+  --accent-foreground: 0 0% 100%;
+
+  /* Destructive */
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  /* Borders */
+  --border: 270 20% 90%;
+  --input: 270 20% 90%;
+  --ring: 262 83% 58%;
+
+  /* Border Radius */
+  --radius: 0.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Dark Mode Colors */
+    --background: 224 71% 4%;
+    --foreground: 0 0% 98%;
+    --card: 224 71% 8%;
+    --card-foreground: 0 0% 98%;
+    --popover: 224 71% 8%;
+    --popover-foreground: 0 0% 98%;
+
+    /* Primary - Brighter Purple in Dark Mode */
+    --primary: 262 83% 68%;
+    --primary-foreground: 224 71% 4%;
+
+    /* Secondary */
+    --secondary: 240 20% 15%;
+    --secondary-foreground: 0 0% 98%;
+
+    /* Muted */
+    --muted: 240 20% 15%;
+    --muted-foreground: 240 5% 65%;
+
+    /* Accent */
+    --accent: 217 91% 65%;
+    --accent-foreground: 224 71% 4%;
+
+    /* Destructive */
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 0 0% 98%;
+
+    /* Borders */
+    --border: 240 20% 18%;
+    --input: 240 20% 18%;
+    --ring: 262 83% 68%;
+  }
+}
+
+@theme {
+  --color-*: initial;
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --radius: var(--radius);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: system-ui, sans-serif;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Gradient backgrounds */
+.gradient-primary {
+  background: linear-gradient(135deg, hsl(262 83% 58%) 0%, hsl(217 91% 60%) 100%);
+}
+
+.gradient-card {
+  background: linear-gradient(135deg, hsl(270 60% 98%) 0%, hsl(0 0% 100%) 100%);
+}
+
+@media (prefers-color-scheme: dark) {
+  .gradient-card {
+    background: linear-gradient(135deg, hsl(240 20% 15%) 0%, hsl(224 71% 8%) 100%);
+  }
+}
