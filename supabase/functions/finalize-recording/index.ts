@@ -1,38 +1,38 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers':
     'authorization, x-client-info, apikey, content-type',
-};
+}
 
 interface RecordingManifest {
-  recordingId: string;
-  mimeType: string;
-  codecs: string;
-  totalParts: number;
-  totalBytes: number;
-  duration: number;
-  width: number;
-  height: number;
-  createdAt: string;
+  recordingId: string
+  mimeType: string
+  codecs: string
+  totalParts: number
+  totalBytes: number
+  duration: number
+  width: number
+  height: number
+  createdAt: string
 }
 
 interface RequestBody {
-  recordingId: string;
-  manifest: RecordingManifest;
+  recordingId: string
+  manifest: RecordingManifest
 }
 
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
     // Get authorization header
-    const authHeader = req.headers.get('Authorization');
+    const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: 'Missing authorization header' }),
@@ -40,7 +40,7 @@ serve(async (req) => {
           status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
-      );
+      )
     }
 
     // Create Supabase client
@@ -52,27 +52,24 @@ serve(async (req) => {
           headers: { Authorization: authHeader },
         },
       }
-    );
+    )
 
     // Get user from JWT
     const {
       data: { user },
       error: userError,
-    } = await supabaseClient.auth.getUser();
+    } = await supabaseClient.auth.getUser()
 
     if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     // Parse request body
-    const body: RequestBody = await req.json();
-    const { recordingId, manifest } = body;
+    const body: RequestBody = await req.json()
+    const { recordingId, manifest } = body
 
     if (!recordingId || !manifest) {
       return new Response(
@@ -81,7 +78,7 @@ serve(async (req) => {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
-      );
+      )
     }
 
     // Validate that the recording exists and belongs to the user's org
@@ -89,16 +86,13 @@ serve(async (req) => {
       .from('recordings')
       .select('id, org_id, test_link_id')
       .eq('id', recordingId)
-      .single();
+      .single()
 
     if (recordingError || !recording) {
-      return new Response(
-        JSON.stringify({ error: 'Recording not found' }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return new Response(JSON.stringify({ error: 'Recording not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     // Check if user has access to this org
@@ -107,40 +101,37 @@ serve(async (req) => {
       .select('id')
       .eq('org_id', recording.org_id)
       .eq('user_id', user.id)
-      .single();
+      .single()
 
     if (membershipError || !membership) {
-      return new Response(
-        JSON.stringify({ error: 'Forbidden' }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     // Upload manifest to storage
-    const manifestPath = `recordings/${recordingId}/manifest.json`;
+    const manifestPath = `recordings/${recordingId}/manifest.json`
     const manifestBlob = new Blob([JSON.stringify(manifest, null, 2)], {
       type: 'application/json',
-    });
+    })
 
     const { error: uploadError } = await supabaseClient.storage
       .from('recordings')
       .upload(manifestPath, manifestBlob, {
         contentType: 'application/json',
         upsert: true,
-      });
+      })
 
     if (uploadError) {
-      console.error('Error uploading manifest:', uploadError);
+      console.error('Error uploading manifest:', uploadError)
       return new Response(
         JSON.stringify({ error: 'Failed to upload manifest' }),
         {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
-      );
+      )
     }
 
     // Update recording with manifest data
@@ -157,37 +148,37 @@ serve(async (req) => {
         manifest_url: manifestPath,
         status: 'completed',
       })
-      .eq('id', recordingId);
+      .eq('id', recordingId)
 
     if (updateError) {
-      console.error('Error updating recording:', updateError);
+      console.error('Error updating recording:', updateError)
       return new Response(
         JSON.stringify({ error: 'Failed to update recording' }),
         {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
-      );
+      )
     }
 
     // Create recording_segments entries for each part
-    const segments = [];
+    const segments = []
     for (let i = 0; i < manifest.totalParts; i++) {
       segments.push({
         recording_id: recordingId,
         part_index: i,
         storage_path: `recordings/${recordingId}/part-${i.toString().padStart(5, '0')}.webm`,
         mime_type: manifest.mimeType,
-      });
+      })
     }
 
     if (segments.length > 0) {
       const { error: segmentsError } = await supabaseClient
         .from('recording_segments')
-        .insert(segments);
+        .insert(segments)
 
       if (segmentsError) {
-        console.error('Error creating segments:', segmentsError);
+        console.error('Error creating segments:', segmentsError)
         // Don't fail the request if segments can't be created
         // They can be recreated from the manifest later
       }
@@ -206,15 +197,12 @@ serve(async (req) => {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
-    );
+    )
   } catch (error) {
-    console.error('Error in finalize-recording:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    console.error('Error in finalize-recording:', error)
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
-});
+})

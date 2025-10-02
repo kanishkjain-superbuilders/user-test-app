@@ -1,20 +1,20 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from './store/auth';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useAuthStore } from './store/auth'
 
 // Pages
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import AcceptInvite from './pages/AcceptInvite';
-import Dashboard from './pages/Dashboard';
-import ProjectDetail from './pages/ProjectDetail';
-import TestLinkForm from './pages/TestLinkForm';
-import RecordingPlayer from './pages/RecordingPlayer';
-import LiveViewer from './pages/LiveViewer';
-import TesterFlow from './pages/TesterFlow';
+import Login from './pages/Login'
+import Signup from './pages/Signup'
+import AcceptInvite from './pages/AcceptInvite'
+import Dashboard from './pages/Dashboard'
+import ProjectDetail from './pages/ProjectDetail'
+import TestLinkForm from './pages/TestLinkForm'
+import RecordingPlayer from './pages/RecordingPlayer'
+import LiveViewer from './pages/LiveViewer'
+import TesterFlow from './pages/TesterFlow'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const { user } = useAuthStore();
-  return user ? <>{children}</> : <Navigate to="/login" />;
+  const { user } = useAuthStore()
+  return user ? <>{children}</> : <Navigate to="/login" />
 }
 
 function App() {
@@ -81,7 +81,7 @@ function App() {
         <Route path="/" element={<Navigate to="/app" />} />
       </Routes>
     </BrowserRouter>
-  );
+  )
 }
 
-export default App;
+export default App

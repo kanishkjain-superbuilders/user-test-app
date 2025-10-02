@@ -1,55 +1,64 @@
-import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
-import type { Database } from '../lib/database.types';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { RecordingControlBar } from '@/components/RecordingControlBar';
-import ReactMarkdown from 'react-markdown';
-import { Video, Mic, Camera, Play, AlertCircle, CheckCircle } from 'lucide-react';
-import { useRecordingManager } from '../hooks/useRecordingManager';
-import { useUploadManager } from '../hooks/useUploadManager';
-import { isBrowserSupported } from '../lib/recording-utils';
-import { toast } from 'sonner';
+import { useEffect, useState, useCallback } from 'react'
+import { useParams } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+import type { Database } from '../lib/database.types'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { RecordingControlBar } from '@/components/RecordingControlBar'
+import ReactMarkdown from 'react-markdown'
+import {
+  Video,
+  Mic,
+  Camera,
+  Play,
+  AlertCircle,
+  CheckCircle,
+} from 'lucide-react'
+import { useRecordingManager } from '../hooks/useRecordingManager'
+import { useUploadManager } from '../hooks/useUploadManager'
+import { isBrowserSupported } from '../lib/recording-utils'
+import { toast } from 'sonner'
 
-type TestLink = Database['public']['Tables']['test_links']['Row'];
+type TestLink = Database['public']['Tables']['test_links']['Row']
 
 interface RecordOpts {
-  screen: boolean;
-  mic: boolean;
-  cam: boolean;
-  maxDurationSec: number;
+  screen: boolean
+  mic: boolean
+  cam: boolean
+  maxDurationSec: number
 }
 
-type FlowState = 'loading' | 'instructions' | 'recording' | 'uploading' | 'complete' | 'error';
+type FlowState =
+  | 'loading'
+  | 'instructions'
+  | 'recording'
+  | 'uploading'
+  | 'complete'
+  | 'error'
 
 export default function TesterFlow() {
-  const { slug } = useParams<{ slug: string }>();
-  const [testLink, setTestLink] = useState<TestLink | null>(null);
-  const [flowState, setFlowState] = useState<FlowState>('loading');
-  const [error, setError] = useState<string | null>(null);
-  const [recordingId, setRecordingId] = useState<string | null>(null);
+  const { slug } = useParams<{ slug: string }>()
+  const [testLink, setTestLink] = useState<TestLink | null>(null)
+  const [flowState, setFlowState] = useState<FlowState>('loading')
+  const [error, setError] = useState<string | null>(null)
+  const [recordingId, setRecordingId] = useState<string | null>(null)
 
   // Recording hooks
-  const recordingManager = useRecordingManager();
-  const uploadManager = useUploadManager();
+  const recordingManager = useRecordingManager()
+  const uploadManager = useUploadManager()
 
-  useEffect(() => {
-    loadTestLink();
-  }, [slug]);
+  const loadTestLink = useCallback(async () => {
+    if (!slug) return
 
-  const loadTestLink = async () => {
-    if (!slug) return;
-
-    setFlowState('loading');
-    setError(null);
+    setFlowState('loading')
+    setError(null)
 
     // Check browser support
-    const browserCheck = isBrowserSupported();
+    const browserCheck = isBrowserSupported()
     if (!browserCheck.supported) {
-      setError(browserCheck.reason || 'Browser not supported');
-      setFlowState('error');
-      return;
+      setError(browserCheck.reason || 'Browser not supported')
+      setFlowState('error')
+      return
     }
 
     const { data, error: fetchError } = await supabase
@@ -57,22 +66,26 @@ export default function TesterFlow() {
       .select('*')
       .eq('slug', slug)
       .eq('active', true)
-      .single();
+      .single()
 
     if (fetchError || !data) {
-      setError('Test link not found or is no longer active');
-      setFlowState('error');
-      return;
+      setError('Test link not found or is no longer active')
+      setFlowState('error')
+      return
     }
 
-    setTestLink(data);
-    setFlowState('instructions');
-  };
+    setTestLink(data)
+    setFlowState('instructions')
+  }, [slug])
+
+  useEffect(() => {
+    loadTestLink()
+  }, [loadTestLink])
 
   const startRecordingFlow = async () => {
-    if (!testLink) return;
+    if (!testLink) return
 
-    const opts = testLink.record_opts as unknown as RecordOpts;
+    const opts = testLink.record_opts as unknown as RecordOpts
 
     try {
       // Create recording entry in database
@@ -84,16 +97,16 @@ export default function TesterFlow() {
           project_id: testLink.project_id || '',
           status: 'uploading',
           object_path: `recordings/temp-${Date.now()}`,
-        } as any)
+        } as never)
         .select()
-        .single();
+        .single()
 
       if (createError || !newRecording) {
-        throw new Error('Failed to create recording entry');
+        throw new Error('Failed to create recording entry')
       }
 
-      const recordingIdValue = (newRecording as any).id;
-      setRecordingId(recordingIdValue);
+      const recordingIdValue = (newRecording as { id: string }).id
+      setRecordingId(recordingIdValue)
 
       // Start recording
       await recordingManager.startRecording(recordingIdValue, {
@@ -101,41 +114,41 @@ export default function TesterFlow() {
         mic: opts.mic,
         cam: opts.cam,
         maxDurationSec: opts.maxDurationSec,
-      });
+      })
 
-      setFlowState('recording');
-      toast.success('Recording started!');
+      setFlowState('recording')
+      toast.success('Recording started!')
 
       // Start uploading chunks in background
-      uploadManager.startUploading(recordingIdValue);
+      uploadManager.startUploading(recordingIdValue)
 
       // If there's a redirect URL, open it
       if (testLink.redirect_url) {
-        window.open(testLink.redirect_url, '_blank');
+        window.open(testLink.redirect_url, '_blank')
       }
     } catch (err) {
-      console.error('Failed to start recording:', err);
-      setError(err instanceof Error ? err.message : 'Failed to start recording');
-      setFlowState('error');
-      toast.error('Failed to start recording');
+      console.error('Failed to start recording:', err)
+      setError(err instanceof Error ? err.message : 'Failed to start recording')
+      setFlowState('error')
+      toast.error('Failed to start recording')
     }
-  };
+  }
 
   const handleStopRecording = async () => {
-    if (!recordingId) return;
+    if (!recordingId) return
 
     try {
       // Stop recording
-      await recordingManager.stopRecording();
+      await recordingManager.stopRecording()
 
-      setFlowState('uploading');
-      toast.info('Recording stopped. Uploading...');
+      setFlowState('uploading')
+      toast.info('Recording stopped. Uploading...')
 
       // Wait for uploads to complete
-      await uploadManager.startUploading(recordingId);
+      await uploadManager.startUploading(recordingId)
 
       // Get manifest from store
-      const manifest = recordingManager.state;
+      const manifest = recordingManager.state
 
       // Finalize recording
       if (manifest) {
@@ -149,25 +162,27 @@ export default function TesterFlow() {
           width: 1920,
           height: 1080,
           createdAt: new Date().toISOString(),
-        });
+        })
       }
 
-      setFlowState('complete');
-      toast.success('Recording uploaded successfully!');
+      setFlowState('complete')
+      toast.success('Recording uploaded successfully!')
     } catch (err) {
-      console.error('Failed to finalize recording:', err);
-      setError(err instanceof Error ? err.message : 'Failed to finalize recording');
-      setFlowState('error');
-      toast.error('Failed to upload recording');
+      console.error('Failed to finalize recording:', err)
+      setError(
+        err instanceof Error ? err.message : 'Failed to finalize recording'
+      )
+      setFlowState('error')
+      toast.error('Failed to upload recording')
     }
-  };
+  }
 
   if (flowState === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <p className="text-muted-foreground">Loading...</p>
       </div>
-    );
+    )
   }
 
   if (flowState === 'error' || !testLink) {
@@ -187,11 +202,11 @@ export default function TesterFlow() {
           </CardContent>
         </Card>
       </div>
-    );
+    )
   }
 
-  const opts = testLink.record_opts as unknown as RecordOpts;
-  const muteState = recordingManager.getMuteState();
+  const opts = testLink.record_opts as unknown as RecordOpts
+  const muteState = recordingManager.getMuteState()
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-purple-50/30 to-blue-50/30 dark:from-background dark:via-purple-950/10 dark:to-blue-950/10">
@@ -266,8 +281,8 @@ export default function TesterFlow() {
 
                   <div className="pt-4 border-t">
                     <p className="text-sm text-muted-foreground">
-                      <strong>Max duration:</strong> {Math.floor(opts.maxDurationSec / 60)}{' '}
-                      minutes
+                      <strong>Max duration:</strong>{' '}
+                      {Math.floor(opts.maxDurationSec / 60)} minutes
                     </p>
                   </div>
                 </div>
@@ -280,12 +295,12 @@ export default function TesterFlow() {
                   <AlertCircle className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
                   <div className="text-sm text-muted-foreground">
                     <p className="mb-2">
-                      <strong>Privacy:</strong> Your recording will be stored securely and
-                      only accessible to the test organizers.
+                      <strong>Privacy:</strong> Your recording will be stored
+                      securely and only accessible to the test organizers.
                     </p>
                     <p>
-                      By clicking "Start Recording", you consent to recording your screen,
-                      audio, and video as specified above.
+                      By clicking "Start Recording", you consent to recording
+                      your screen, audio, and video as specified above.
                     </p>
                   </div>
                 </div>
@@ -314,9 +329,12 @@ export default function TesterFlow() {
                   <div className="h-16 w-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
                     <div className="h-8 w-8 rounded-full bg-red-500 animate-pulse" />
                   </div>
-                  <h2 className="text-2xl font-bold mb-2">Recording in Progress</h2>
+                  <h2 className="text-2xl font-bold mb-2">
+                    Recording in Progress
+                  </h2>
                   <p className="text-muted-foreground mb-4">
-                    Your session is being recorded. Use the control bar to pause or stop.
+                    Your session is being recorded. Use the control bar to pause
+                    or stop.
                   </p>
                   {testLink.redirect_url && (
                     <p className="text-sm text-muted-foreground">
@@ -358,13 +376,16 @@ export default function TesterFlow() {
                   <div className="flex justify-between text-sm text-muted-foreground">
                     <span>Progress</span>
                     <span>
-                      {uploadManager.progress.uploadedParts}/{uploadManager.progress.totalParts}
+                      {uploadManager.progress.uploadedParts}/
+                      {uploadManager.progress.totalParts}
                     </span>
                   </div>
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <div
                       className="h-full bg-primary transition-all duration-300"
-                      style={{ width: `${uploadManager.progress.percentComplete}%` }}
+                      style={{
+                        width: `${uploadManager.progress.percentComplete}%`,
+                      }}
                     />
                   </div>
                 </div>
@@ -383,7 +404,8 @@ export default function TesterFlow() {
                 </div>
                 <h2 className="text-2xl font-bold mb-2">Recording Complete!</h2>
                 <p className="text-muted-foreground mb-4">
-                  Thank you for participating. Your recording has been uploaded successfully.
+                  Thank you for participating. Your recording has been uploaded
+                  successfully.
                 </p>
                 <p className="text-sm text-muted-foreground">
                   You can now close this window.
@@ -394,5 +416,5 @@ export default function TesterFlow() {
         )}
       </div>
     </div>
-  );
+  )
 }

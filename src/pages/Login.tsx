@@ -1,61 +1,67 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Video } from 'lucide-react';
+import { useState } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Video } from 'lucide-react'
 
 export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const navigate = useNavigate();
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const navigate = useNavigate()
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
+    e.preventDefault()
+    setLoading(true)
+    setError('')
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
-    });
+    })
 
     if (error) {
-      setError(error.message);
-      setLoading(false);
+      setError(error.message)
+      setLoading(false)
     } else {
-      navigate('/app');
+      navigate('/app')
     }
-  };
+  }
 
   const handleMagicLink = async () => {
     if (!email) {
-      setError('Please enter your email');
-      return;
+      setError('Please enter your email')
+      return
     }
 
-    setLoading(true);
-    setError('');
+    setLoading(true)
+    setError('')
 
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
         emailRedirectTo: window.location.origin + '/app',
       },
-    });
+    })
 
     if (error) {
-      setError(error.message);
+      setError(error.message)
     } else {
-      setError('Check your email for the login link!');
+      setError('Check your email for the login link!')
     }
 
-    setLoading(false);
-  };
+    setLoading(false)
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-purple-50/30 to-blue-50/30 dark:from-background dark:via-purple-950/10 dark:to-blue-950/10 p-4">
@@ -122,7 +128,10 @@ export default function Login() {
             </div>
             <div className="text-center text-sm">
               Don't have an account?{' '}
-              <Link to="/signup" className="text-primary hover:underline font-medium">
+              <Link
+                to="/signup"
+                className="text-primary hover:underline font-medium"
+              >
                 Sign up
               </Link>
             </div>
@@ -130,5 +139,5 @@ export default function Login() {
         </CardContent>
       </Card>
     </div>
-  );
+  )
 }

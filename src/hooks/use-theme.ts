@@ -1,21 +1,21 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState } from 'react'
 
-type Theme = "dark" | "light" | "system"
+type Theme = 'dark' | 'light' | 'system'
 
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem("theme") as Theme) || "system"
+    () => (localStorage.getItem('theme') as Theme) || 'system'
   )
 
   useEffect(() => {
     const root = window.document.documentElement
-    root.classList.remove("light", "dark")
+    root.classList.remove('light', 'dark')
 
-    if (theme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
+    if (theme === 'system') {
+      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
         .matches
-        ? "dark"
-        : "light"
+        ? 'dark'
+        : 'light'
 
       root.classList.add(systemTheme)
       return
@@ -27,7 +27,7 @@ export function useTheme() {
   return {
     theme,
     setTheme: (theme: Theme) => {
-      localStorage.setItem("theme", theme)
+      localStorage.setItem('theme', theme)
       setTheme(theme)
     },
   }

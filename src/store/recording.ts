@@ -1,44 +1,48 @@
-import { create } from 'zustand';
-import type { Database } from '../lib/database.types';
+import { create } from 'zustand'
+import type { Database } from '../lib/database.types'
 
-type Recording = Database['public']['Tables']['recordings']['Row'];
-type RecordingSegment = Database['public']['Tables']['recording_segments']['Row'];
+type Recording = Database['public']['Tables']['recordings']['Row']
+type RecordingSegment =
+  Database['public']['Tables']['recording_segments']['Row']
 
 interface UploadQueueItem {
-  partIndex: number;
-  blob: Blob;
-  status: 'pending' | 'uploading' | 'uploaded' | 'failed';
-  retries: number;
+  partIndex: number
+  blob: Blob
+  status: 'pending' | 'uploading' | 'uploaded' | 'failed'
+  retries: number
 }
 
 interface RecordingManifest {
-  recordingId: string;
-  mimeType: string;
-  codecs: string;
-  totalParts: number;
-  totalBytes: number;
-  duration: number;
-  width: number;
-  height: number;
+  recordingId: string
+  mimeType: string
+  codecs: string
+  totalParts: number
+  totalBytes: number
+  duration: number
+  width: number
+  height: number
 }
 
 interface RecordingState {
-  recording: Recording | null;
-  segments: RecordingSegment[];
-  uploadQueue: UploadQueueItem[];
-  isRecording: boolean;
-  mediaRecorder: MediaRecorder | null;
-  manifest: RecordingManifest | null;
+  recording: Recording | null
+  segments: RecordingSegment[]
+  uploadQueue: UploadQueueItem[]
+  isRecording: boolean
+  mediaRecorder: MediaRecorder | null
+  manifest: RecordingManifest | null
 
   // Actions
-  setRecording: (recording: Recording | null) => void;
-  setSegments: (segments: RecordingSegment[]) => void;
-  addToUploadQueue: (item: UploadQueueItem) => void;
-  updateQueueItem: (partIndex: number, updates: Partial<UploadQueueItem>) => void;
-  setIsRecording: (recording: boolean) => void;
-  setMediaRecorder: (recorder: MediaRecorder | null) => void;
-  setManifest: (manifest: RecordingManifest | null) => void;
-  resetRecordingState: () => void;
+  setRecording: (recording: Recording | null) => void
+  setSegments: (segments: RecordingSegment[]) => void
+  addToUploadQueue: (item: UploadQueueItem) => void
+  updateQueueItem: (
+    partIndex: number,
+    updates: Partial<UploadQueueItem>
+  ) => void
+  setIsRecording: (recording: boolean) => void
+  setMediaRecorder: (recorder: MediaRecorder | null) => void
+  setManifest: (manifest: RecordingManifest | null) => void
+  resetRecordingState: () => void
 }
 
 export const useRecordingStore = create<RecordingState>((set) => ({
@@ -80,4 +84,4 @@ export const useRecordingStore = create<RecordingState>((set) => ({
       mediaRecorder: null,
       manifest: null,
     }),
-}));
+}))

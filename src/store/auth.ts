@@ -1,37 +1,37 @@
-import { create } from 'zustand';
-import type { User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { create } from 'zustand'
+import type { User } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
 
 interface Organization {
-  id: string;
-  name: string;
-  owner_user_id: string;
-  created_at: string;
-  updated_at: string;
+  id: string
+  name: string
+  owner_user_id: string
+  created_at: string
+  updated_at: string
 }
 
 interface Membership {
-  id: string;
-  org_id: string;
-  user_id: string;
-  role: 'admin' | 'editor' | 'viewer';
-  organization?: Organization;
+  id: string
+  org_id: string
+  user_id: string
+  role: 'admin' | 'editor' | 'viewer'
+  organization?: Organization
 }
 
 interface AuthState {
-  user: User | null;
-  currentOrg: Organization | null;
-  memberships: Membership[];
-  loading: boolean;
+  user: User | null
+  currentOrg: Organization | null
+  memberships: Membership[]
+  loading: boolean
 
   // Actions
-  setUser: (user: User | null) => void;
-  setCurrentOrg: (org: Organization | null) => void;
-  setMemberships: (memberships: Membership[]) => void;
-  loadMemberships: () => Promise<void>;
-  switchOrg: (orgId: string) => void;
-  signOut: () => Promise<void>;
-  initialize: () => Promise<void>;
+  setUser: (user: User | null) => void
+  setCurrentOrg: (org: Organization | null) => void
+  setMemberships: (memberships: Membership[]) => void
+  loadMemberships: () => Promise<void>
+  switchOrg: (orgId: string) => void
+  signOut: () => Promise<void>
+  initialize: () => Promise<void>
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -43,81 +43,87 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setUser: (user) => set({ user }),
 
   setCurrentOrg: (org) => {
-    set({ currentOrg: org });
+    set({ currentOrg: org })
     if (org) {
-      localStorage.setItem('currentOrgId', org.id);
+      localStorage.setItem('currentOrgId', org.id)
     } else {
-      localStorage.removeItem('currentOrgId');
+      localStorage.removeItem('currentOrgId')
     }
   },
 
   setMemberships: (memberships) => set({ memberships }),
 
   loadMemberships: async () => {
-    const { user } = get();
-    if (!user) return;
+    const { user } = get()
+    if (!user) return
 
     const { data, error } = await supabase
       .from('memberships')
       .select('*, organization:organizations(*)')
-      .eq('user_id', user.id);
+      .eq('user_id', user.id)
 
     if (error) {
-      console.error('Error loading memberships:', error);
-      return;
+      console.error('Error loading memberships:', error)
+      return
     }
 
-    set({ memberships: data || [] });
+    // Cast data to expected type with organization relation
+    const membershipsWithOrg = (data || []) as unknown as Membership[]
+    set({ memberships: membershipsWithOrg })
 
     // Auto-select org
-    const savedOrgId = localStorage.getItem('currentOrgId');
-    const currentOrg = data?.find((m) => m.org_id === savedOrgId)?.organization;
+    const savedOrgId = localStorage.getItem('currentOrgId')
+    const currentOrg = membershipsWithOrg?.find(
+      (m) => m.org_id === savedOrgId
+    )?.organization
 
     if (currentOrg) {
-      set({ currentOrg });
-    } else if (data && data.length > 0) {
-      const firstOrg = data[0].organization;
-      set({ currentOrg: firstOrg || null });
+      set({ currentOrg })
+    } else if (membershipsWithOrg && membershipsWithOrg.length > 0) {
+      const firstOrg = membershipsWithOrg[0].organization
+      set({ currentOrg: firstOrg || null })
       if (firstOrg) {
-        localStorage.setItem('currentOrgId', firstOrg.id);
+        localStorage.setItem('currentOrgId', firstOrg.id)
       }
     }
   },
 
   switchOrg: (orgId) => {
-    const { memberships } = get();
-    const membership = memberships.find((m) => m.org_id === orgId);
+    const { memberships } = get()
+    const membership = memberships.find((m) => m.org_id === orgId)
     if (membership?.organization) {
-      get().setCurrentOrg(membership.organization);
+      get().setCurrentOrg(membership.organization)
     }
   },
 
   signOut: async () => {
-    await supabase.auth.signOut();
-    set({ user: null, currentOrg: null, memberships: [] });
-    localStorage.removeItem('currentOrgId');
+    await supabase.auth.signOut()
+    set({ user: null, currentOrg: null, memberships: [] })
+    localStorage.removeItem('currentOrgId')
   },
 
   initialize: async () => {
-    set({ loading: true });
+    set({ loading: true })
 
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
 
     if (session?.user) {
-      set({ user: session.user });
-      await get().loadMemberships();
+      set({ user: session.user })
+      await get().loadMemberships()
     }
 
-    set({ loading: false });
+    set({ loading: false })
 
     // Listen to auth changes
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        set({ user: session.user });
-        await get().loadMemberships();
+        set({ user: session.user })
+        await get().loadMemberships()
       } else {
-        set({ user: null, currentOrg: null, memberships: [] });
+        set({ user: null, currentOrg: null, memberships: [] })
       }
-    });
+    })
   },
-}));
+}))

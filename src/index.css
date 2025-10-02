@@ -103,7 +103,7 @@
   * {
     border-color: var(--color-border);
   }
-  
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
@@ -132,7 +132,11 @@
 
 /* Gradient backgrounds */
 .gradient-primary {
-  background: linear-gradient(135deg, hsl(262 83% 58%) 0%, hsl(217 91% 60%) 100%);
+  background: linear-gradient(
+    135deg,
+    hsl(262 83% 58%) 0%,
+    hsl(217 91% 60%) 100%
+  );
 }
 
 .gradient-card {
@@ -141,6 +145,10 @@
 
 @media (prefers-color-scheme: dark) {
   .gradient-card {
-    background: linear-gradient(135deg, hsl(240 20% 15%) 0%, hsl(224 71% 8%) 100%);
+    background: linear-gradient(
+      135deg,
+      hsl(240 20% 15%) 0%,
+      hsl(224 71% 8%) 100%
+    );
   }
 }

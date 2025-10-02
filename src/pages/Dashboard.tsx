@@ -1,9 +1,15 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../store/auth';
-import { useProjectStore } from '../store/project';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuthStore } from '../store/auth'
+import { useProjectStore } from '../store/project'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -11,7 +17,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from '@/components/ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,54 +25,57 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Separator } from '@/components/ui/separator';
-import { ChevronDown, Plus, Folder, LogOut, Settings } from 'lucide-react';
+} from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { ChevronDown, Plus, Folder, LogOut, Settings } from 'lucide-react'
 
 export default function Dashboard() {
-  const navigate = useNavigate();
-  const { user, currentOrg, memberships, switchOrg, signOut } = useAuthStore();
-  const { projects, loadProjects, createProject, loading } = useProjectStore();
+  const navigate = useNavigate()
+  const { user, currentOrg, memberships, switchOrg, signOut } = useAuthStore()
+  const { projects, loadProjects, createProject, loading } = useProjectStore()
 
-  const [showCreateProject, setShowCreateProject] = useState(false);
-  const [projectName, setProjectName] = useState('');
-  const [projectDescription, setProjectDescription] = useState('');
-  const [creating, setCreating] = useState(false);
+  const [showCreateProject, setShowCreateProject] = useState(false)
+  const [projectName, setProjectName] = useState('')
+  const [projectDescription, setProjectDescription] = useState('')
+  const [creating, setCreating] = useState(false)
 
   useEffect(() => {
     if (currentOrg) {
-      loadProjects(currentOrg.id);
+      loadProjects(currentOrg.id)
     }
-  }, [currentOrg, loadProjects]);
+  }, [currentOrg, loadProjects])
 
   const handleCreateProject = async () => {
-    if (!currentOrg || !projectName.trim()) return;
+    if (!currentOrg || !projectName.trim()) return
 
-    setCreating(true);
-    const project = await createProject(currentOrg.id, projectName.trim(), projectDescription.trim() || undefined);
-    setCreating(false);
+    setCreating(true)
+    const project = await createProject(
+      currentOrg.id,
+      projectName.trim(),
+      projectDescription.trim() || undefined
+    )
+    setCreating(false)
 
     if (project) {
-      setShowCreateProject(false);
-      setProjectName('');
-      setProjectDescription('');
+      setShowCreateProject(false)
+      setProjectName('')
+      setProjectDescription('')
     }
-  };
+  }
 
   const handleSignOut = async () => {
-    await signOut();
-    navigate('/login');
-  };
+    await signOut()
+    navigate('/login')
+  }
 
   if (!user || !currentOrg) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-muted-foreground">Loading...</p>
       </div>
-    );
+    )
   }
 
   return (
@@ -75,7 +84,9 @@ export default function Dashboard() {
       <header className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">User Testing</h1>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              User Testing
+            </h1>
 
             {/* Organization Switcher */}
             <DropdownMenu>
@@ -91,8 +102,12 @@ export default function Dashboard() {
                 {memberships.map((membership) => (
                   <DropdownMenuItem
                     key={membership.id}
-                    onClick={() => membership.organization && switchOrg(membership.org_id)}
-                    className={currentOrg.id === membership.org_id ? 'bg-accent' : ''}
+                    onClick={() =>
+                      membership.organization && switchOrg(membership.org_id)
+                    }
+                    className={
+                      currentOrg.id === membership.org_id ? 'bg-accent' : ''
+                    }
                   >
                     {membership.organization?.name}
                   </DropdownMenuItem>
@@ -111,7 +126,10 @@ export default function Dashboard() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
+              <DropdownMenuItem
+                onClick={handleSignOut}
+                className="text-destructive"
+              >
                 <LogOut className="h-4 w-4 mr-2" />
                 Sign Out
               </DropdownMenuItem>
@@ -131,7 +149,10 @@ export default function Dashboard() {
                 Manage your user testing projects and test links
               </p>
             </div>
-            <Button onClick={() => setShowCreateProject(true)} className="gap-2">
+            <Button
+              onClick={() => setShowCreateProject(true)}
+              className="gap-2"
+            >
               <Plus className="h-4 w-4" />
               New Project
             </Button>
@@ -149,7 +170,10 @@ export default function Dashboard() {
                 <p className="text-muted-foreground text-center mb-4">
                   Get started by creating your first project
                 </p>
-                <Button onClick={() => setShowCreateProject(true)} className="gap-2">
+                <Button
+                  onClick={() => setShowCreateProject(true)}
+                  className="gap-2"
+                >
                   <Plus className="h-4 w-4" />
                   Create Project
                 </Button>
@@ -165,7 +189,9 @@ export default function Dashboard() {
                 >
                   <CardHeader>
                     <div className="flex items-start justify-between">
-                      <CardTitle className="group-hover:text-primary transition-colors">{project.name}</CardTitle>
+                      <CardTitle className="group-hover:text-primary transition-colors">
+                        {project.name}
+                      </CardTitle>
                       <Folder className="h-5 w-5 text-primary opacity-60 group-hover:opacity-100 transition-opacity" />
                     </div>
                     {project.description && (
@@ -176,7 +202,8 @@ export default function Dashboard() {
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground">
-                      Created {new Date(project.created_at).toLocaleDateString()}
+                      Created{' '}
+                      {new Date(project.created_at).toLocaleDateString()}
                     </p>
                   </CardContent>
                 </Card>
@@ -192,7 +219,8 @@ export default function Dashboard() {
           <DialogHeader>
             <DialogTitle>Create New Project</DialogTitle>
             <DialogDescription>
-              Projects help you organize your user testing sessions and test links.
+              Projects help you organize your user testing sessions and test
+              links.
             </DialogDescription>
           </DialogHeader>
 
@@ -209,7 +237,9 @@ export default function Dashboard() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="project-description">Description (optional)</Label>
+              <Label htmlFor="project-description">
+                Description (optional)
+              </Label>
               <Textarea
                 id="project-description"
                 placeholder="Brief description of what you're testing..."
@@ -224,9 +254,9 @@ export default function Dashboard() {
             <Button
               variant="outline"
               onClick={() => {
-                setShowCreateProject(false);
-                setProjectName('');
-                setProjectDescription('');
+                setShowCreateProject(false)
+                setProjectName('')
+                setProjectDescription('')
               }}
             >
               Cancel
@@ -241,5 +271,5 @@ export default function Dashboard() {
         </DialogContent>
       </Dialog>
     </div>
-  );
+  )
 }

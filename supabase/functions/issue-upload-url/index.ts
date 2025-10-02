@@ -1,27 +1,27 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers':
     'authorization, x-client-info, apikey, content-type',
-};
+}
 
 interface RequestBody {
-  recordingId: string;
-  partIndex: number;
-  mimeType: string;
+  recordingId: string
+  partIndex: number
+  mimeType: string
 }
 
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
     // Get authorization header
-    const authHeader = req.headers.get('Authorization');
+    const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: 'Missing authorization header' }),
@@ -29,7 +29,7 @@ serve(async (req) => {
           status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
-      );
+      )
     }
 
     // Create Supabase client
@@ -41,27 +41,24 @@ serve(async (req) => {
           headers: { Authorization: authHeader },
         },
       }
-    );
+    )
 
     // Get user from JWT
     const {
       data: { user },
       error: userError,
-    } = await supabaseClient.auth.getUser();
+    } = await supabaseClient.auth.getUser()
 
     if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     // Parse request body
-    const body: RequestBody = await req.json();
-    const { recordingId, partIndex, mimeType } = body;
+    const body: RequestBody = await req.json()
+    const { recordingId, partIndex, mimeType } = body
 
     if (!recordingId || partIndex === undefined || !mimeType) {
       return new Response(
@@ -70,7 +67,7 @@ serve(async (req) => {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
-      );
+      )
     }
 
     // Validate that the recording exists and belongs to the user's org
@@ -78,16 +75,13 @@ serve(async (req) => {
       .from('recordings')
       .select('id, org_id')
       .eq('id', recordingId)
-      .single();
+      .single()
 
     if (recordingError || !recording) {
-      return new Response(
-        JSON.stringify({ error: 'Recording not found' }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return new Response(JSON.stringify({ error: 'Recording not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     // Check if user has access to this org
@@ -96,38 +90,35 @@ serve(async (req) => {
       .select('id')
       .eq('org_id', recording.org_id)
       .eq('user_id', user.id)
-      .single();
+      .single()
 
     if (membershipError || !membership) {
-      return new Response(
-        JSON.stringify({ error: 'Forbidden' }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     // Determine file extension from MIME type
-    const extension = mimeType.includes('video') ? 'webm' : 'webm';
+    const extension = mimeType.includes('video') ? 'webm' : 'webm'
 
     // Generate storage path
-    const storagePath = `recordings/${recordingId}/part-${partIndex.toString().padStart(5, '0')}.${extension}`;
+    const storagePath = `recordings/${recordingId}/part-${partIndex.toString().padStart(5, '0')}.${extension}`
 
     // Create signed upload URL (expires in 1 hour)
     const { data: urlData, error: urlError } = await supabaseClient.storage
       .from('recordings')
-      .createSignedUploadUrl(storagePath);
+      .createSignedUploadUrl(storagePath)
 
     if (urlError || !urlData) {
-      console.error('Error creating signed URL:', urlError);
+      console.error('Error creating signed URL:', urlError)
       return new Response(
         JSON.stringify({ error: 'Failed to create signed upload URL' }),
         {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
-      );
+      )
     }
 
     // Return signed URL
@@ -142,15 +133,12 @@ serve(async (req) => {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
-    );
+    )
   } catch (error) {
-    console.error('Error in issue-upload-url:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    console.error('Error in issue-upload-url:', error)
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
-});
+})

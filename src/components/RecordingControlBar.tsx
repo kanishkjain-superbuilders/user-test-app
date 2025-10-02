@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { Button } from './ui/button';
-import { Card } from './ui/card';
+import { useEffect, useState } from 'react'
+import { Button } from './ui/button'
+import { Card } from './ui/card'
 import {
   Circle,
   Square,
@@ -12,25 +12,25 @@ import {
   VideoOff,
   Minimize2,
   Maximize2,
-} from 'lucide-react';
-import { formatDuration } from '../lib/recording-utils';
-import type { RecordingState } from '../hooks/useRecordingManager';
+} from 'lucide-react'
+import { formatDuration } from '../lib/recording-utils'
+import type { RecordingState } from '../hooks/useRecordingManager'
 
 interface RecordingControlBarProps {
-  state: RecordingState;
-  onStop: () => void;
-  onPause: () => void;
-  onResume: () => void;
-  onToggleMic: () => void;
-  onToggleCam: () => void;
-  micMuted: boolean;
-  camMuted: boolean;
-  maxDuration?: number; // in seconds
+  state: RecordingState
+  onStop: () => void
+  onPause: () => void
+  onResume: () => void
+  onToggleMic: () => void
+  onToggleCam: () => void
+  micMuted: boolean
+  camMuted: boolean
+  maxDuration?: number // in seconds
   uploadProgress?: {
-    uploadedParts: number;
-    totalParts: number;
-    percentComplete: number;
-  };
+    uploadedParts: number
+    totalParts: number
+    percentComplete: number
+  }
 }
 
 export function RecordingControlBar({
@@ -45,45 +45,45 @@ export function RecordingControlBar({
   maxDuration,
   uploadProgress,
 }: RecordingControlBarProps) {
-  const [isMinimized, setIsMinimized] = useState(false);
-  const [position, setPosition] = useState({ x: 20, y: 20 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [isMinimized, setIsMinimized] = useState(false)
+  const [position, setPosition] = useState({ x: 20, y: 20 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
 
   // Handle dragging
   useEffect(() => {
-    if (!isDragging) return;
+    if (!isDragging) return
 
     const handleMouseMove = (e: MouseEvent) => {
       setPosition({
         x: e.clientX - dragOffset.x,
         y: e.clientY - dragOffset.y,
-      });
-    };
+      })
+    }
 
     const handleMouseUp = () => {
-      setIsDragging(false);
-    };
+      setIsDragging(false)
+    }
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging, dragOffset]);
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging, dragOffset])
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true);
+    setIsDragging(true)
     setDragOffset({
       x: e.clientX - position.x,
       y: e.clientY - position.y,
-    });
-  };
+    })
+  }
 
-  const remainingTime = maxDuration ? maxDuration - state.duration : 0;
-  const isNearingEnd = maxDuration && remainingTime <= 60; // Last minute
+  const remainingTime = maxDuration ? maxDuration - state.duration : 0
+  const isNearingEnd = maxDuration && remainingTime <= 60 // Last minute
 
   return (
     <div
@@ -106,9 +106,7 @@ export function RecordingControlBar({
                   <Circle className="h-4 w-4 text-red-500 absolute inset-0 animate-ping" />
                 </div>
               )}
-              {state.isPaused && (
-                <Pause className="h-4 w-4 text-yellow-500" />
-              )}
+              {state.isPaused && <Pause className="h-4 w-4 text-yellow-500" />}
               <span className="text-sm font-mono font-semibold">
                 {formatDuration(state.duration)}
               </span>
@@ -117,8 +115,8 @@ export function RecordingControlBar({
               size="sm"
               variant="ghost"
               onClick={(e) => {
-                e.stopPropagation();
-                setIsMinimized(false);
+                e.stopPropagation()
+                setIsMinimized(false)
               }}
             >
               <Maximize2 className="h-4 w-4" />
@@ -148,8 +146,8 @@ export function RecordingControlBar({
                 size="sm"
                 variant="ghost"
                 onClick={(e) => {
-                  e.stopPropagation();
-                  setIsMinimized(true);
+                  e.stopPropagation()
+                  setIsMinimized(true)
                 }}
               >
                 <Minimize2 className="h-4 w-4" />
@@ -164,7 +162,9 @@ export function RecordingControlBar({
               {maxDuration && (
                 <div
                   className={`text-sm ${
-                    isNearingEnd ? 'text-red-500 font-semibold' : 'text-muted-foreground'
+                    isNearingEnd
+                      ? 'text-red-500 font-semibold'
+                      : 'text-muted-foreground'
                   }`}
                 >
                   {remainingTime > 0
@@ -199,8 +199,8 @@ export function RecordingControlBar({
                 size="sm"
                 variant={micMuted ? 'destructive' : 'outline'}
                 onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleMic();
+                  e.stopPropagation()
+                  onToggleMic()
                 }}
                 disabled={!state.isRecording}
               >
@@ -216,8 +216,8 @@ export function RecordingControlBar({
                 size="sm"
                 variant={camMuted ? 'destructive' : 'outline'}
                 onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleCam();
+                  e.stopPropagation()
+                  onToggleCam()
                 }}
                 disabled={!state.isRecording}
               >
@@ -234,8 +234,8 @@ export function RecordingControlBar({
                   size="sm"
                   variant="outline"
                   onClick={(e) => {
-                    e.stopPropagation();
-                    onPause();
+                    e.stopPropagation()
+                    onPause()
                   }}
                 >
                   <Pause className="h-4 w-4" />
@@ -248,8 +248,8 @@ export function RecordingControlBar({
                   size="sm"
                   variant="outline"
                   onClick={(e) => {
-                    e.stopPropagation();
-                    onResume();
+                    e.stopPropagation()
+                    onResume()
                   }}
                 >
                   <Play className="h-4 w-4" />
@@ -262,8 +262,8 @@ export function RecordingControlBar({
                 size="sm"
                 variant="destructive"
                 onClick={(e) => {
-                  e.stopPropagation();
-                  onStop();
+                  e.stopPropagation()
+                  onStop()
                 }}
                 disabled={!state.isRecording && !state.isPaused}
               >
@@ -282,5 +282,5 @@ export function RecordingControlBar({
         )}
       </Card>
     </div>
-  );
+  )
 }
