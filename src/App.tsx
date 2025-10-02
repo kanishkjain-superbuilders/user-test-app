@@ -13,7 +13,18 @@ import LiveViewer from './pages/LiveViewer'
 import TesterFlow from './pages/TesterFlow'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const { user } = useAuthStore()
+  const { user, loading } = useAuthStore()
+
+  // Show loading state while auth is initializing
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    )
+  }
+
+  // Only redirect to login if we're sure there's no user after loading completes
   return user ? <>{children}</> : <Navigate to="/login" />
 }
 

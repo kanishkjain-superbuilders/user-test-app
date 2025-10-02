@@ -13,6 +13,7 @@ interface ProjectState {
 
   // Actions
   loadProjects: (orgId: string) => Promise<void>
+  loadSingleProject: (projectId: string) => Promise<Project | null>
   setCurrentProject: (project: Project | null) => void
   loadTestLinks: (projectId: string) => Promise<void>
   createProject: (
@@ -51,6 +52,36 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }
 
     set({ projects: data || [], loading: false })
+  },
+
+  loadSingleProject: async (projectId: string) => {
+    set({ loading: true })
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .single()
+
+    if (error) {
+      console.error('Error loading project:', error)
+      set({ loading: false })
+      return null
+    }
+
+    // Add to projects array if not already there
+    const { projects } = get()
+    const existingIndex = projects.findIndex((p) => p.id === projectId)
+    if (existingIndex === -1) {
+      set({ projects: [...projects, data], loading: false })
+    } else {
+      // Update existing project
+      set({
+        projects: projects.map((p) => (p.id === projectId ? data : p)),
+        loading: false,
+      })
+    }
+
+    return data
   },
 
   setCurrentProject: (project) => set({ currentProject: project }),

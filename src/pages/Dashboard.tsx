@@ -33,7 +33,14 @@ import { ChevronDown, Plus, Folder, LogOut, Settings } from 'lucide-react'
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { user, currentOrg, memberships, switchOrg, signOut } = useAuthStore()
+  const {
+    user,
+    currentOrg,
+    memberships,
+    switchOrg,
+    signOut,
+    loading: authLoading,
+  } = useAuthStore()
   const { projects, loadProjects, createProject, loading } = useProjectStore()
 
   const [showCreateProject, setShowCreateProject] = useState(false)
@@ -70,10 +77,28 @@ export default function Dashboard() {
     navigate('/login')
   }
 
+  // Show loading spinner while auth is initializing
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    )
+  }
+
+  // If auth is loaded but no user, they should be redirected by PrivateRoute
+  // If user exists but no org, show a message (this shouldn't normally happen)
   if (!user || !currentOrg) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
+        <div className="text-center">
+          <p className="text-muted-foreground mb-4">
+            {!user ? 'No user found' : 'No organization found'}
+          </p>
+          <Button onClick={handleSignOut} variant="outline">
+            Sign Out
+          </Button>
+        </div>
       </div>
     )
   }

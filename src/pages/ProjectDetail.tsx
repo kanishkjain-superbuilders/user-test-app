@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useProjectStore } from '../store/project'
+import { useAuthStore } from '../store/auth'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -33,26 +34,46 @@ export default function ProjectDetail() {
     setCurrentProject,
     loadTestLinks,
     deleteTestLink,
+    loadSingleProject,
+    loading: projectsLoading,
   } = useProjectStore()
+  const { loading: authLoading } = useAuthStore()
 
   const [recordings, setRecordings] = useState<Recording[]>([])
   const [loadingRecordings, setLoadingRecordings] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(true)
 
   useEffect(() => {
-    if (projectId) {
-      const project = projects.find((p) => p.id === projectId)
+    const loadProjectData = async () => {
+      if (!projectId) return
+
+      // First check if project exists in the store
+      let project = projects.find((p) => p.id === projectId)
+
+      // If not found in store, load it from the database
+      if (!project) {
+        const loadedProject = await loadSingleProject(projectId)
+        if (loadedProject) {
+          project = loadedProject
+        }
+      }
+
       if (project) {
         setCurrentProject(project)
         loadTestLinks(projectId)
         loadRecordings()
       }
+
+      setInitialLoading(false)
     }
+
+    loadProjectData()
 
     return () => {
       setCurrentProject(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, projects, setCurrentProject, loadTestLinks])
+  }, [projectId])
 
   const loadRecordings = async () => {
     if (!projectId) return
@@ -106,10 +127,25 @@ export default function ProjectDetail() {
     }
   }
 
+  // Show loading spinner while auth or initial project load is happening
+  if (authLoading || initialLoading || projectsLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    )
+  }
+
+  // If no project found after loading
   if (!currentProject) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
+        <div className="text-center">
+          <p className="text-muted-foreground mb-4">Project not found</p>
+          <Button onClick={() => navigate('/app')} variant="outline">
+            Back to Dashboard
+          </Button>
+        </div>
       </div>
     )
   }
