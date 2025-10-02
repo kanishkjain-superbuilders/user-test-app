@@ -61,7 +61,7 @@ export default function TestLinkForm() {
       )
       setActive(existingLink.active)
     }
-  }, [isEdit, existingLink])
+  }, [isEdit, existingLink, recordOpts])
 
   const generateSlug = () => {
     if (!title.trim()) return

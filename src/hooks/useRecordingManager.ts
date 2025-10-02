@@ -95,6 +95,74 @@ export function useRecordingManager(): RecordingManager {
   }, [])
 
   /**
+   * Stop timer
+   */
+  const stopTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+  }, [])
+
+  /**
+   * Stop recording
+   */
+  const stopRecording = useCallback(async (): Promise<void> => {
+    if (!mediaRecorderRef.current || !recordingIdRef.current) {
+      return
+    }
+
+    return new Promise((resolve) => {
+      const mediaRecorder = mediaRecorderRef.current!
+
+      // Handle final chunk
+      mediaRecorder.onstop = async () => {
+        stopTimer()
+
+        // Generate manifest
+        const manifest = generateManifest(
+          recordingIdRef.current!,
+          mimeTypeRef.current,
+          partIndexRef.current,
+          totalBytesRef.current,
+          state.duration,
+          dimensionsRef.current.width,
+          dimensionsRef.current.height
+        )
+
+        setManifest(manifest)
+
+        // Cleanup
+        cleanup()
+
+        setState({
+          isRecording: false,
+          isPaused: false,
+          duration: 0,
+          error: null,
+        })
+
+        resolve()
+      }
+
+      // Stop the recorder
+      if (mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop()
+      } else {
+        stopTimer()
+        cleanup()
+        setState({
+          isRecording: false,
+          isPaused: false,
+          duration: 0,
+          error: null,
+        })
+        resolve()
+      }
+    })
+  }, [cleanup, stopTimer, setManifest, state.duration])
+
+  /**
    * Start timer to track duration
    */
   const startTimer = useCallback(() => {
@@ -109,17 +177,7 @@ export function useRecordingManager(): RecordingManager {
         stopRecording()
       }
     }, 100)
-  }, [])
-
-  /**
-   * Stop timer
-   */
-  const stopTimer = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current)
-      timerRef.current = null
-    }
-  }, [])
+  }, [stopRecording])
 
   /**
    * Start recording
@@ -297,66 +355,8 @@ export function useRecordingManager(): RecordingManager {
         throw error
       }
     },
-    [cleanup, startTimer]
+    [cleanup, startTimer, stopRecording]
   )
-
-  /**
-   * Stop recording
-   */
-  const stopRecording = useCallback(async (): Promise<void> => {
-    if (!mediaRecorderRef.current || !recordingIdRef.current) {
-      return
-    }
-
-    return new Promise((resolve) => {
-      const mediaRecorder = mediaRecorderRef.current!
-
-      // Handle final chunk
-      mediaRecorder.onstop = async () => {
-        stopTimer()
-
-        // Generate manifest
-        const manifest = generateManifest(
-          recordingIdRef.current!,
-          mimeTypeRef.current,
-          partIndexRef.current,
-          totalBytesRef.current,
-          state.duration,
-          dimensionsRef.current.width,
-          dimensionsRef.current.height
-        )
-
-        setManifest(manifest)
-
-        // Cleanup
-        cleanup()
-
-        setState({
-          isRecording: false,
-          isPaused: false,
-          duration: 0,
-          error: null,
-        })
-
-        resolve()
-      }
-
-      // Stop the recorder
-      if (mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop()
-      } else {
-        stopTimer()
-        cleanup()
-        setState({
-          isRecording: false,
-          isPaused: false,
-          duration: 0,
-          error: null,
-        })
-        resolve()
-      }
-    })
-  }, [cleanup, stopTimer, setManifest, state.duration])
 
   /**
    * Pause recording

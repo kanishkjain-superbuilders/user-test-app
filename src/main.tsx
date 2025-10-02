@@ -5,6 +5,7 @@ import App from './App.tsx'
 import { useAuthStore } from './store/auth'
 import { Toaster } from '@/components/ui/sonner'
 
+// eslint-disable-next-line react-refresh/only-export-components
 function Root() {
   useEffect(() => {
     useAuthStore.getState().initialize()

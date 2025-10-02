@@ -89,13 +89,13 @@ export default function TesterFlow() {
 
     try {
       // Create recording entry using RPC function (bypasses RLS issues)
-      const { data: recordingId, error: createError } = (await supabase.rpc(
-        'create_anon_recording',
-        {
-          p_test_link_id: testLink.id,
-          p_object_path: `recordings/temp-${Date.now()}`,
-        } as unknown
-      )) as { data: string | null; error: unknown }
+      const { data: recordingId, error: createError } =
+        await // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase.rpc as any)(
+          'create_anon_recording',
+          testLink.id,
+          `recordings/temp-${Date.now()}`
+        )
 
       if (createError || !recordingId) {
         console.error('Supabase error:', createError)

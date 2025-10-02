@@ -286,7 +286,7 @@ export function useUploadManager(): UploadManager {
         setIsUploading(false)
       }
     },
-    []
+    [processQueue]
   )
 
   /**
@@ -342,10 +342,12 @@ export function useUploadManager(): UploadManager {
   useEffect(() => {
     return () => {
       // Abort all active uploads
-      abortControllersRef.current.forEach((controller) => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      const controllers = abortControllersRef.current
+      controllers.forEach((controller) => {
         controller.abort()
       })
-      abortControllersRef.current.clear()
+      controllers.clear()
       uploadingRef.current = false
     }
   }, [])
