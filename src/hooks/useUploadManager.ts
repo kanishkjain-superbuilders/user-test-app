@@ -68,9 +68,11 @@ export function useUploadManager(): UploadManager {
     const {
       data: { session },
     } = await supabase.auth.getSession()
-    if (!session) {
-      throw new Error('Not authenticated')
-    }
+
+    // Use session token if authenticated, otherwise use anon key
+    const authHeader = session
+      ? `Bearer ${session.access_token}`
+      : `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
 
     const response = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/issue-upload-url`,
@@ -78,7 +80,7 @@ export function useUploadManager(): UploadManager {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: authHeader,
         },
         body: JSON.stringify({
           recordingId,
@@ -296,9 +298,11 @@ export function useUploadManager(): UploadManager {
         const {
           data: { session },
         } = await supabase.auth.getSession()
-        if (!session) {
-          throw new Error('Not authenticated')
-        }
+
+        // Use session token if authenticated, otherwise use anon key
+        const authHeader = session
+          ? `Bearer ${session.access_token}`
+          : `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
 
         const response = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/finalize-recording`,
@@ -306,7 +310,7 @@ export function useUploadManager(): UploadManager {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              Authorization: `Bearer ${session.access_token}`,
+              Authorization: authHeader,
             },
             body: JSON.stringify({
               recordingId,

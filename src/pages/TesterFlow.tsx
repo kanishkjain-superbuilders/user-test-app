@@ -88,28 +88,26 @@ export default function TesterFlow() {
     const opts = testLink.record_opts as unknown as RecordOpts
 
     try {
-      // Create recording entry in database
-      const { data: newRecording, error: createError } = await supabase
-        .from('recordings')
-        .insert({
-          test_link_id: testLink.id,
-          org_id: testLink.org_id,
-          project_id: testLink.project_id || '',
-          status: 'uploading',
-          object_path: `recordings/temp-${Date.now()}`,
-        } as never)
-        .select()
-        .single()
+      // Create recording entry using RPC function (bypasses RLS issues)
+      const { data: recordingId, error: createError } = (await supabase.rpc(
+        'create_anon_recording',
+        {
+          p_test_link_id: testLink.id,
+          p_object_path: `recordings/temp-${Date.now()}`,
+        } as unknown
+      )) as { data: string | null; error: unknown }
 
-      if (createError || !newRecording) {
-        throw new Error('Failed to create recording entry')
+      if (createError || !recordingId) {
+        console.error('Supabase error:', createError)
+        throw new Error(
+          `Failed to create recording entry: ${createError?.message || 'Unknown error'}`
+        )
       }
 
-      const recordingIdValue = (newRecording as { id: string }).id
-      setRecordingId(recordingIdValue)
+      setRecordingId(recordingId)
 
       // Start recording
-      await recordingManager.startRecording(recordingIdValue, {
+      await recordingManager.startRecording(recordingId, {
         screen: opts.screen,
         mic: opts.mic,
         cam: opts.cam,
@@ -120,7 +118,7 @@ export default function TesterFlow() {
       toast.success('Recording started!')
 
       // Start uploading chunks in background
-      uploadManager.startUploading(recordingIdValue)
+      uploadManager.startUploading(recordingId)
 
       // If there's a redirect URL, open it
       if (testLink.redirect_url) {

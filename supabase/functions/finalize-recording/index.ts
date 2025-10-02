@@ -43,29 +43,25 @@ serve(async (req) => {
       )
     }
 
-    // Create Supabase client
+    // Create Supabase client with service role for internal operations
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       {
         global: {
           headers: { Authorization: authHeader },
         },
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
       }
     )
 
-    // Get user from JWT
+    // Get user from JWT (may be null for anonymous users)
     const {
       data: { user },
-      error: userError,
     } = await supabaseClient.auth.getUser()
-
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
 
     // Parse request body
     const body: RequestBody = await req.json()
@@ -81,10 +77,10 @@ serve(async (req) => {
       )
     }
 
-    // Validate that the recording exists and belongs to the user's org
+    // Validate that the recording exists
     const { data: recording, error: recordingError } = await supabaseClient
       .from('recordings')
-      .select('id, org_id, test_link_id')
+      .select('id, org_id, test_link_id, uploader_user_id')
       .eq('id', recordingId)
       .single()
 
@@ -95,19 +91,31 @@ serve(async (req) => {
       })
     }
 
-    // Check if user has access to this org
-    const { data: membership, error: membershipError } = await supabaseClient
-      .from('memberships')
-      .select('id')
-      .eq('org_id', recording.org_id)
-      .eq('user_id', user.id)
-      .single()
+    // Check authorization:
+    // 1. If recording has uploader_user_id null, it's an anonymous recording (allowed)
+    // 2. If user is authenticated, check if they have access to the org
+    if (recording.uploader_user_id !== null) {
+      if (!user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
 
-    if (membershipError || !membership) {
-      return new Response(JSON.stringify({ error: 'Forbidden' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      // Check if user has access to this org
+      const { data: membership, error: membershipError } = await supabaseClient
+        .from('memberships')
+        .select('id')
+        .eq('org_id', recording.org_id)
+        .eq('user_id', user.id)
+        .single()
+
+      if (membershipError || !membership) {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
     }
 
     // Upload manifest to storage
