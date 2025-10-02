@@ -117,10 +117,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: false })
 
     // Listen to auth changes
-    supabase.auth.onAuthStateChange(async (_event, session) => {
+    supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         set({ user: session.user })
-        await get().loadMemberships()
+        // Load memberships asynchronously without blocking the event handler
+        get().loadMemberships()
       } else {
         set({ user: null, currentOrg: null, memberships: [] })
       }
