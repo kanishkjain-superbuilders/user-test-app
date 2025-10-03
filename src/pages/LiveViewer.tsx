@@ -7,6 +7,14 @@ import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   Radio,
   Users,
   Send,
@@ -14,6 +22,7 @@ import {
   AlertCircle,
   WifiOff,
   CheckCircle,
+  StopCircle,
 } from 'lucide-react'
 import { useLiveStore } from '../store/live'
 import { supabase } from '../lib/supabase'
@@ -40,6 +49,8 @@ export default function LiveViewer() {
   const [userId, setUserId] = useState<string>('')
   const [commentText, setCommentText] = useState('')
   const [sendingComment, setSendingComment] = useState(false)
+  const [showEndDialog, setShowEndDialog] = useState(false)
+  const [endingRecording, setEndingRecording] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
 
   const {
@@ -150,7 +161,7 @@ export default function LiveViewer() {
 
     // Cleanup on unmount
     return () => {
-      if (session) {
+      if (sessionId && userId) {
         // Mark viewer as left
         supabase
           .from('live_viewers')
@@ -167,7 +178,7 @@ export default function LiveViewer() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, userId, navigate])
+  }, [sessionId, userId, navigate, cleanup])
 
   // Display remote stream
   useEffect(() => {
@@ -222,6 +233,49 @@ export default function LiveViewer() {
       toast.error('Failed to send comment')
     } finally {
       setSendingComment(false)
+    }
+  }
+
+  // End recording
+  const handleEndRecording = async () => {
+    if (!session || !session.tester_id) return
+
+    setEndingRecording(true)
+
+    try {
+      // Call RPC to end the session
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase.rpc as any)('end_test_live_session', {
+        p_session_id: session.id,
+        p_tester_id: session.tester_id,
+      })
+
+      if (error) {
+        throw error
+      }
+
+      // Broadcast session end to all viewers
+      const { channel } = useLiveStore.getState()
+      if (channel) {
+        channel.send({
+          type: 'broadcast',
+          event: 'session-ended',
+          payload: {},
+        })
+      }
+
+      toast.success('Recording ended successfully. Video upload will begin.')
+      setShowEndDialog(false)
+
+      // Navigate back to dashboard after a short delay
+      setTimeout(() => {
+        navigate('/dashboard')
+      }, 2000)
+    } catch (error) {
+      console.error('Failed to end recording:', error)
+      toast.error('Failed to end recording')
+    } finally {
+      setEndingRecording(false)
     }
   }
 
@@ -367,6 +421,17 @@ export default function LiveViewer() {
                     <span>{viewerCount + 1} watching</span>
                   </div>
                 </div>
+                <div className="pt-2">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => setShowEndDialog(true)}
+                  >
+                    <StopCircle className="h-4 w-4 mr-2" />
+                    End Recording
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
@@ -471,6 +536,46 @@ export default function LiveViewer() {
           </div>
         </div>
       </div>
+
+      {/* End Recording Confirmation Dialog */}
+      <Dialog open={showEndDialog} onOpenChange={setShowEndDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>End Recording?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to end this recording session? This will
+              stop the livestream and begin the video upload process. This
+              action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowEndDialog(false)}
+              disabled={endingRecording}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleEndRecording}
+              disabled={endingRecording}
+            >
+              {endingRecording ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Ending...
+                </>
+              ) : (
+                <>
+                  <StopCircle className="h-4 w-4 mr-2" />
+                  End Recording
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
