@@ -74,6 +74,7 @@ export default function Dashboard() {
   const [creating, setCreating] = useState(false)
   const [pendingInvitesCount, setPendingInvitesCount] = useState(0)
   const [activeTab, setActiveTab] = useState('overview')
+  const [switchingOrg, setSwitchingOrg] = useState(false)
 
   useEffect(() => {
     if (currentOrg) {
@@ -196,9 +197,22 @@ export default function Dashboard() {
             {/* Organization Switcher */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  {currentOrg.name}
-                  <ChevronDown className="h-4 w-4" />
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  disabled={switchingOrg}
+                >
+                  {switchingOrg ? (
+                    <>
+                      <span className="animate-pulse">Switching...</span>
+                      <ChevronDown className="h-4 w-4" />
+                    </>
+                  ) : (
+                    <>
+                      {currentOrg.name}
+                      <ChevronDown className="h-4 w-4" />
+                    </>
+                  )}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56">
@@ -207,19 +221,37 @@ export default function Dashboard() {
                 {memberships.map((membership) => (
                   <DropdownMenuItem
                     key={membership.id}
-                    onClick={() => switchOrg(membership.org_id)}
+                    onClick={async (e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      if (
+                        membership.org_id !== currentOrg.id &&
+                        !switchingOrg
+                      ) {
+                        setSwitchingOrg(true)
+                        switchOrg(membership.org_id)
+                        // Small delay to ensure state updates properly
+                        setTimeout(() => {
+                          setSwitchingOrg(false)
+                        }, 500)
+                      }
+                    }}
                     className={
                       currentOrg.id === membership.org_id ? 'bg-accent' : ''
                     }
+                    disabled={switchingOrg}
                   >
-                    {membership.organization?.name}
+                    {membership.organization?.name ||
+                      `Organization ${membership.org_id.slice(0, 8)}`}
                   </DropdownMenuItem>
                 ))}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={() =>
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
                     navigate(`/app/organizations/${currentOrg.id}/settings`)
-                  }
+                  }}
                   className="gap-2"
                 >
                   <Users className="h-4 w-4" />
@@ -552,7 +584,7 @@ export default function Dashboard() {
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-base truncate">
-                          {(recording as any).test_links?.title || 'Recording'}
+                          {recording.test_links?.title || 'Recording'}
                         </CardTitle>
                         {recording.status === 'ready' ? (
                           <Play className="h-4 w-4 text-green-600" />
@@ -561,7 +593,7 @@ export default function Dashboard() {
                         )}
                       </div>
                       <CardDescription className="text-xs">
-                        {(recording as any).test_links?.projects?.name ||
+                        {recording.test_links?.projects?.name ||
                           'Unknown Project'}
                       </CardDescription>
                     </CardHeader>
@@ -642,7 +674,7 @@ export default function Dashboard() {
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-base truncate">
-                          {(session as any).test_links?.title || 'Live Session'}
+                          {session.test_links?.title || 'Live Session'}
                         </CardTitle>
                         <div className="flex items-center gap-1">
                           <div className="animate-pulse h-2 w-2 rounded-full bg-red-500" />

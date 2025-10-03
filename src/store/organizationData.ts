@@ -7,6 +7,17 @@ type TestLink = Database['public']['Tables']['test_links']['Row']
 type Project = Database['public']['Tables']['projects']['Row']
 type LiveSession = Database['public']['Tables']['live_sessions']['Row']
 
+// Extended types for data with relationships
+export interface RecordingWithRelations extends Recording {
+  test_links?: TestLink & {
+    projects?: Project
+  }
+}
+
+export interface LiveSessionWithRelations extends LiveSession {
+  test_links?: TestLink
+}
+
 interface OrganizationStats {
   totalProjects: number
   totalRecordings: number
@@ -21,8 +32,8 @@ interface OrganizationStats {
 
 interface OrganizationDataState {
   // Data
-  recordings: Recording[]
-  liveSessions: LiveSession[]
+  recordings: RecordingWithRelations[]
+  liveSessions: LiveSessionWithRelations[]
   stats: OrganizationStats | null
   testLinks: TestLink[]
   projects: Project[]
@@ -151,7 +162,7 @@ export const useOrganizationDataStore = create<OrganizationDataState>(
           return
         }
 
-        const projectIds = projects.map((p: any) => p.id)
+        const projectIds = (projects as Project[]).map((p) => p.id)
 
         // Get active live sessions for these projects
         const { data, error } = await supabase
@@ -226,7 +237,7 @@ export const useOrganizationDataStore = create<OrganizationDataState>(
               .then(async ({ data: projects }) => {
                 if (!projects || projects.length === 0) return { count: 0 }
 
-                const projectIds = projects.map((p: any) => p.id)
+                const projectIds = (projects as Project[]).map((p) => p.id)
                 return supabase
                   .from('live_sessions')
                   .select('id', { count: 'exact', head: true })
@@ -243,7 +254,9 @@ export const useOrganizationDataStore = create<OrganizationDataState>(
           .order('created_at', { ascending: false })
           .limit(10)
 
-        const recentActivity = (recentRecordings || []).map((r: any) => ({
+        const recentActivity = (
+          (recentRecordings || []) as RecordingWithRelations[]
+        ).map((r) => ({
           type: 'recording' as const,
           title: r.test_links?.title || 'Recording',
           timestamp: r.created_at,

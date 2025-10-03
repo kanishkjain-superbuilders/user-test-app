@@ -80,9 +80,15 @@ export default function OrganizationSettings() {
     setLoadingMembers(true)
     try {
       // Try to use the database function if it exists
-      const { data: functionData, error: functionError } = await (
-        supabase.rpc as any
-      )('get_org_members', { org_uuid: orgId })
+      const { data: functionData, error: functionError } = (await (
+        supabase.rpc as unknown as (
+          name: string,
+          params: Record<string, unknown>
+        ) => Promise<{ data: unknown; error: unknown }>
+      )('get_org_members', { org_uuid: orgId })) as {
+        data: unknown
+        error: unknown
+      }
 
       if (functionError) {
         console.error('RPC Error details:', functionError)
@@ -116,36 +122,37 @@ export default function OrganizationSettings() {
         setMembers(membersWithUsers as Membership[])
       } else {
         // Fallback to regular query
-        const { data: membershipData, error } = (await supabase
+        const { data: membershipData, error } = await supabase
           .from('memberships')
           .select('*')
           .eq('org_id', orgId)
-          .order('created_at', { ascending: true })) as any
+          .order('created_at', { ascending: true })
 
         if (error) throw error
 
         // For fallback, show current user's email and truncated IDs for others
-        const membersWithUsers = (membershipData || []).map(
-          (membership: any) => {
-            const isCurrentUser = membership.user_id === user?.id
-            return {
-              id: membership.id,
-              org_id: membership.org_id,
-              user_id: membership.user_id,
-              role: membership.role,
+        type MembershipRow = Database['public']['Tables']['memberships']['Row']
+        const membersWithUsers = (
+          (membershipData || []) as MembershipRow[]
+        ).map((membership) => {
+          const isCurrentUser = membership.user_id === user?.id
+          return {
+            id: membership.id,
+            org_id: membership.org_id,
+            user_id: membership.user_id,
+            role: membership.role,
+            created_at: membership.created_at,
+            updated_at: membership.updated_at,
+            user: {
+              id: membership.user_id,
+              email:
+                isCurrentUser && user?.email
+                  ? user.email
+                  : `User ${membership.user_id.slice(0, 8)}...`,
               created_at: membership.created_at,
-              updated_at: membership.updated_at,
-              user: {
-                id: membership.user_id,
-                email:
-                  isCurrentUser && user?.email
-                    ? user.email
-                    : `User ${membership.user_id.slice(0, 8)}...`,
-                created_at: membership.created_at,
-              },
-            }
+            },
           }
-        )
+        })
 
         setMembers(membersWithUsers as Membership[])
       }
@@ -162,27 +169,30 @@ export default function OrganizationSettings() {
 
     setLoadingInvites(true)
     try {
-      const { data, error } = (await supabase
+      const { data, error } = await supabase
         .from('invites')
         .select('*')
         .eq('org_id', orgId)
         .is('accepted_at', null)
-        .order('created_at', { ascending: false })) as any
+        .order('created_at', { ascending: false })
 
       if (error) throw error
 
       // For now, we won't show the inviter email
-      const invitesWithInviter = (data || []).map((invite: any) => ({
-        id: invite.id,
-        org_id: invite.org_id,
-        email: invite.email,
-        role: invite.role,
-        token: invite.token,
-        accepted_at: invite.accepted_at,
-        created_at: invite.created_at,
-        updated_at: invite.updated_at,
-        inviter: null,
-      }))
+      type InviteRow = Database['public']['Tables']['invites']['Row']
+      const invitesWithInviter = ((data || []) as InviteRow[]).map(
+        (invite) => ({
+          id: invite.id,
+          org_id: invite.org_id,
+          email: invite.email,
+          role: invite.role,
+          token: invite.token,
+          accepted_at: invite.accepted_at,
+          created_at: invite.created_at,
+          updated_at: invite.updated_at,
+          inviter: null,
+        })
+      )
 
       setPendingInvites(invitesWithInviter as Invite[])
     } catch (error) {

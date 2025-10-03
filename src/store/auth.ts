@@ -1,20 +1,12 @@
 import { create } from 'zustand'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import type { Database } from '../lib/database.types'
 
-interface Organization {
-  id: string
-  name: string
-  owner_user_id: string
-  created_at: string
-  updated_at: string
-}
+type Organization = Database['public']['Tables']['organizations']['Row']
+type MembershipRow = Database['public']['Tables']['memberships']['Row']
 
-interface Membership {
-  id: string
-  org_id: string
-  user_id: string
-  role: 'admin' | 'editor' | 'viewer'
+interface Membership extends MembershipRow {
   organization?: Organization
 }
 
@@ -57,18 +49,53 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { user } = get()
     if (!user) return
 
-    const { data, error } = await supabase
+    // First load memberships
+    const { data: membershipData, error: membershipError } = await supabase
       .from('memberships')
-      .select('*, organization:organizations(*)')
+      .select('*')
       .eq('user_id', user.id)
 
-    if (error) {
-      console.error('Error loading memberships:', error)
+    if (membershipError) {
+      console.error('Error loading memberships:', membershipError)
       return
     }
 
-    // Cast data to expected type with organization relation
-    const membershipsWithOrg = (data || []) as unknown as Membership[]
+    if (!membershipData || membershipData.length === 0) {
+      set({ memberships: [] })
+      return
+    }
+
+    // Then load the organizations separately to avoid recursion issues
+    const orgIds = (membershipData as MembershipRow[]).map((m) => m.org_id)
+    const { data: orgData, error: orgError } = await supabase
+      .from('organizations')
+      .select('*')
+      .in('id', orgIds)
+
+    if (orgError) {
+      console.error('Error loading organizations:', orgError)
+      // Still set memberships even if orgs fail to load
+      const membershipsWithoutOrg: Membership[] = (
+        membershipData as MembershipRow[]
+      ).map((m) => ({
+        ...m,
+        organization: undefined,
+      }))
+      set({ memberships: membershipsWithoutOrg })
+      return
+    }
+
+    // Combine the data
+    const membershipsWithOrg: Membership[] = (
+      membershipData as MembershipRow[]
+    ).map((membership) => ({
+      ...membership,
+      organization:
+        (orgData as Organization[])?.find(
+          (org) => org.id === membership.org_id
+        ) || undefined,
+    }))
+
     set({ memberships: membershipsWithOrg })
 
     // Auto-select org
