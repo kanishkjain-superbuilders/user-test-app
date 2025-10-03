@@ -10,6 +10,7 @@ import { Video, Mic, Play, AlertCircle, CheckCircle } from 'lucide-react'
 import { useRecordingManager } from '../hooks/useRecordingManager'
 import { useRecordingStore } from '../store/recording'
 import { useUploadManager } from '../hooks/useUploadManager'
+import { useLiveStore } from '../store/live'
 import { isBrowserSupported } from '../lib/recording-utils'
 import { toast } from 'sonner'
 
@@ -144,6 +145,63 @@ export default function TesterFlow() {
     }
   }, [controlBarWindow])
 
+  const handleStopRecording = useCallback(async () => {
+    if (!recordingId) return
+
+    try {
+      // Stop recording
+      await recordingManager.stopRecording()
+
+      setFlowState('uploading')
+      toast.info('Recording stopped. Uploading...')
+
+      // Wait for uploads to complete
+      await uploadManager.startUploading(recordingId)
+
+      // Get generated manifest from recording store (set during stop)
+      const manifest = useRecordingStore.getState().manifest
+
+      // Finalize recording with accurate manifest
+      if (manifest) {
+        await uploadManager.finalizeRecording(recordingId, manifest)
+      } else {
+        throw new Error('Manifest not available after recording stop')
+      }
+
+      setFlowState('complete')
+      toast.success('Recording uploaded successfully!')
+    } catch (err) {
+      console.error('Failed to finalize recording:', err)
+      setError(
+        err instanceof Error ? err.message : 'Failed to finalize recording'
+      )
+      setFlowState('error')
+      toast.error('Failed to upload recording')
+    }
+  }, [recordingId, recordingManager, uploadManager])
+
+  // Listen for session-ended event from live channel (remote end recording)
+  useEffect(() => {
+    if (flowState !== 'recording') return
+
+    const liveChannel = useLiveStore.getState().channel
+    if (!liveChannel) return
+
+    const handleSessionEnded = () => {
+      toast.info('Recording ended remotely by a viewer')
+      handleStopRecording()
+    }
+
+    // Subscribe to session-ended events
+    liveChannel.on('broadcast', { event: 'session-ended' }, handleSessionEnded)
+
+    // Cleanup: Since we can't unsubscribe individual events easily,
+    // we rely on the channel cleanup in the live store when session ends
+    return () => {
+      // Event handlers are automatically removed when channel is cleaned up
+    }
+  }, [flowState, handleStopRecording])
+
   const startRecordingFlow = async () => {
     if (!testLink) return
 
@@ -202,41 +260,6 @@ export default function TesterFlow() {
       setError(err instanceof Error ? err.message : 'Failed to start recording')
       setFlowState('error')
       toast.error('Failed to start recording')
-    }
-  }
-
-  const handleStopRecording = async () => {
-    if (!recordingId) return
-
-    try {
-      // Stop recording
-      await recordingManager.stopRecording()
-
-      setFlowState('uploading')
-      toast.info('Recording stopped. Uploading...')
-
-      // Wait for uploads to complete
-      await uploadManager.startUploading(recordingId)
-
-      // Get generated manifest from recording store (set during stop)
-      const manifest = useRecordingStore.getState().manifest
-
-      // Finalize recording with accurate manifest
-      if (manifest) {
-        await uploadManager.finalizeRecording(recordingId, manifest)
-      } else {
-        throw new Error('Manifest not available after recording stop')
-      }
-
-      setFlowState('complete')
-      toast.success('Recording uploaded successfully!')
-    } catch (err) {
-      console.error('Failed to finalize recording:', err)
-      setError(
-        err instanceof Error ? err.message : 'Failed to finalize recording'
-      )
-      setFlowState('error')
-      toast.error('Failed to upload recording')
     }
   }
 
