@@ -38,31 +38,6 @@ export default function Login() {
     }
   }
 
-  const handleMagicLink = async () => {
-    if (!email) {
-      setError('Please enter your email')
-      return
-    }
-
-    setLoading(true)
-    setError('')
-
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: window.location.origin + '/app',
-      },
-    })
-
-    if (error) {
-      setError(error.message)
-    } else {
-      setError('Check your email for the login link!')
-    }
-
-    setLoading(false)
-  }
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-purple-50/30 to-blue-50/30 dark:from-background dark:via-purple-950/10 dark:to-blue-950/10 p-4">
       <Card className="max-w-md w-full shadow-xl">
@@ -115,15 +90,6 @@ export default function Login() {
                 className="w-full shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30"
               >
                 {loading ? 'Signing in...' : 'Sign in'}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleMagicLink}
-                disabled={loading}
-                className="w-full"
-              >
-                Send magic link
               </Button>
             </div>
             <div className="text-center text-sm">
