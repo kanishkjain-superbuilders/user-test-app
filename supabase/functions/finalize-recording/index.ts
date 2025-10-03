@@ -43,10 +43,23 @@ serve(async (req) => {
       )
     }
 
-    // Create Supabase client with service role for internal operations
-    const supabaseClient = createClient(
+    // Create an admin client (bypasses RLS) for all DB/storage writes
+    const adminClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    )
+
+    // Create a separate client only for reading the user from the Authorization header
+    // This ensures DB writes are performed with admin privileges while we still validate the caller
+    const authClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
           headers: { Authorization: authHeader },
@@ -61,7 +74,7 @@ serve(async (req) => {
     // Get user from JWT (may be null for anonymous users)
     const {
       data: { user },
-    } = await supabaseClient.auth.getUser()
+    } = await authClient.auth.getUser()
 
     // Parse request body
     const body: RequestBody = await req.json()
@@ -78,7 +91,7 @@ serve(async (req) => {
     }
 
     // Validate that the recording exists
-    const { data: recording, error: recordingError } = await supabaseClient
+    const { data: recording, error: recordingError } = await adminClient
       .from('recordings')
       .select('id, org_id, test_link_id, uploader_user_id')
       .eq('id', recordingId)
@@ -103,7 +116,7 @@ serve(async (req) => {
       }
 
       // Check if user has access to this org
-      const { data: membership, error: membershipError } = await supabaseClient
+      const { data: membership, error: membershipError } = await adminClient
         .from('memberships')
         .select('id')
         .eq('org_id', recording.org_id)
@@ -125,7 +138,7 @@ serve(async (req) => {
       type: 'application/json',
     })
 
-    const { error: uploadError } = await supabaseClient.storage
+    const { error: uploadError } = await adminClient.storage
       .from('recordings')
       .upload(manifestPath, manifestBlob, {
         contentType: 'application/json',
@@ -144,7 +157,7 @@ serve(async (req) => {
     }
 
     // Update recording with manifest data
-    const { error: updateError } = await supabaseClient
+    const { error: updateError } = await adminClient
       .from('recordings')
       .update({
         total_parts: manifest.totalParts,
@@ -155,7 +168,8 @@ serve(async (req) => {
         mime_type: manifest.mimeType,
         codecs: manifest.codecs,
         manifest_url: manifestPath,
-        status: 'completed',
+        // Mark as ready since there is no post-processing step
+        status: 'ready',
       })
       .eq('id', recordingId)
 
@@ -177,12 +191,14 @@ serve(async (req) => {
         recording_id: recordingId,
         part_index: i,
         storage_path: `${recordingId}/part-${i.toString().padStart(5, '0')}.webm`,
+        // We do not have per-part sizes here; persist 0 to satisfy NOT NULL and avoid blocking finalize
+        size_bytes: 0,
         mime_type: manifest.mimeType,
       })
     }
 
     if (segments.length > 0) {
-      const { error: segmentsError } = await supabaseClient
+      const { error: segmentsError } = await adminClient
         .from('recording_segments')
         .insert(segments)
 
