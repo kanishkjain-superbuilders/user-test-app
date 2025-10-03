@@ -316,59 +316,74 @@ export default function Dashboard() {
       <main className="container mx-auto px-6 py-8">
         {/* Organization Stats */}
         {stats && (
-          <div className="grid gap-4 md:grid-cols-4 mb-8">
-            <Card>
+          <div className="grid gap-6 md:grid-cols-4 mb-8">
+            <Card className="gradient-border hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-1 group">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+                <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">
                   Total Projects
                 </CardTitle>
-                <Folder className="h-4 w-4 text-muted-foreground" />
+                <div className="p-2 rounded-lg bg-gradient-to-br from-primary/10 to-accent/10 group-hover:from-primary/20 group-hover:to-accent/20 transition-colors">
+                  <Folder className="h-5 w-5 text-primary" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.totalProjects}</div>
+                <div className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  {stats.totalProjects}
+                </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="gradient-border hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-1 group">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+                <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">
                   Total Recordings
                 </CardTitle>
-                <Video className="h-4 w-4 text-muted-foreground" />
+                <div className="p-2 rounded-lg bg-gradient-to-br from-primary/10 to-accent/10 group-hover:from-primary/20 group-hover:to-accent/20 transition-colors">
+                  <Video className="h-5 w-5 text-primary" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                   {stats.totalRecordings}
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="gradient-border hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-1 group">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+                <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">
                   Active Sessions
                 </CardTitle>
-                <Radio className="h-4 w-4 text-muted-foreground" />
+                <div className="p-2 rounded-lg bg-gradient-to-br from-primary/10 to-accent/10 group-hover:from-primary/20 group-hover:to-accent/20 transition-colors">
+                  <Radio className="h-5 w-5 text-primary" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                   {stats.activeLiveSessions}
                 </div>
                 {stats.activeLiveSessions > 0 && (
-                  <p className="text-xs text-muted-foreground mt-1">Live now</p>
+                  <div className="flex items-center gap-1 mt-2">
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                    <p className="text-xs text-muted-foreground">Live now</p>
+                  </div>
                 )}
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="gradient-border hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-1 group">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+                <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">
                   Test Links
                 </CardTitle>
-                <FileText className="h-4 w-4 text-muted-foreground" />
+                <div className="p-2 rounded-lg bg-gradient-to-br from-primary/10 to-accent/10 group-hover:from-primary/20 group-hover:to-accent/20 transition-colors">
+                  <FileText className="h-5 w-5 text-primary" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.totalTestLinks}</div>
+                <div className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  {stats.totalTestLinks}
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -490,21 +505,31 @@ export default function Dashboard() {
 
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <p className="text-muted-foreground">Loading projects...</p>
+                <div className="text-center">
+                  <div className="w-16 h-16 mx-auto mb-4">
+                    <div className="skeleton w-full h-full rounded-full" />
+                  </div>
+                  <p className="text-muted-foreground animate-pulse">
+                    Loading projects...
+                  </p>
+                </div>
               </div>
             ) : projects.length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <Folder className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">
+              <Card className="gradient-border">
+                <CardContent className="flex flex-col items-center justify-center py-16">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mb-6">
+                    <Folder className="h-10 w-10 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                     No projects yet
                   </h3>
-                  <p className="text-muted-foreground text-center mb-4">
-                    Get started by creating your first project
+                  <p className="text-muted-foreground text-center mb-6 max-w-md">
+                    Get started by creating your first project to organize your
+                    user testing sessions
                   </p>
                   <Button
                     onClick={() => setShowCreateProject(true)}
-                    className="gap-2"
+                    className="gap-2 hover:shadow-lg hover:shadow-primary/20 hover:-translate-y-0.5 transition-all"
                   >
                     <Plus className="h-4 w-4" />
                     Create Project
@@ -512,31 +537,36 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {projects.map((project) => (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {projects.map((project, index) => (
                   <Card
                     key={project.id}
-                    className="cursor-pointer hover:border-primary hover:shadow-lg hover:shadow-primary/10 transition-all duration-200 hover:-translate-y-1 group bg-gradient-to-br from-card to-purple-50/50 dark:to-purple-950/20"
+                    className="cursor-pointer gradient-border hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-2 group overflow-hidden animate-in fade-in-0 slide-in-from-bottom-2"
+                    style={{ animationDelay: `${index * 50}ms` }}
                     onClick={() => navigate(`/app/projects/${project.id}`)}
                   >
-                    <CardHeader>
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/10 to-accent/10 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <CardHeader className="relative">
                       <div className="flex items-start justify-between">
-                        <CardTitle className="group-hover:text-primary transition-colors">
+                        <CardTitle className="group-hover:text-primary transition-colors text-lg">
                           {project.name}
                         </CardTitle>
-                        <Folder className="h-5 w-5 text-primary opacity-60 group-hover:opacity-100 transition-opacity" />
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-primary/10 to-accent/10 group-hover:from-primary/20 group-hover:to-accent/20 transition-colors">
+                          <Folder className="h-4 w-4 text-primary" />
+                        </div>
                       </div>
                       {project.description && (
-                        <CardDescription className="line-clamp-2">
+                        <CardDescription className="line-clamp-2 mt-2">
                           {project.description}
                         </CardDescription>
                       )}
                     </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground">
+                    <CardContent className="relative">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                         Created{' '}
                         {new Date(project.created_at).toLocaleDateString()}
-                      </p>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
@@ -559,63 +589,80 @@ export default function Dashboard() {
 
             {loadingRecordings ? (
               <div className="flex items-center justify-center py-12">
-                <p className="text-muted-foreground">Loading recordings...</p>
+                <div className="text-center">
+                  <div className="w-16 h-16 mx-auto mb-4">
+                    <div className="skeleton w-full h-full rounded-full" />
+                  </div>
+                  <p className="text-muted-foreground animate-pulse">
+                    Loading recordings...
+                  </p>
+                </div>
               </div>
             ) : recordings.length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <Video className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">
+              <Card className="gradient-border">
+                <CardContent className="flex flex-col items-center justify-center py-16">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mb-6">
+                    <Video className="h-10 w-10 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                     No recordings yet
                   </h3>
-                  <p className="text-muted-foreground text-center">
+                  <p className="text-muted-foreground text-center max-w-md">
                     Recordings will appear here when users complete tests
                   </p>
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {recordings.map((recording) => (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {recordings.map((recording, index) => (
                   <Card
                     key={recording.id}
-                    className="cursor-pointer hover:border-primary hover:shadow-lg transition-all"
+                    className="cursor-pointer gradient-border hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-2 group overflow-hidden animate-in fade-in-0 slide-in-from-bottom-2"
+                    style={{ animationDelay: `${index * 50}ms` }}
                     onClick={() => navigate(`/app/recordings/${recording.id}`)}
                   >
-                    <CardHeader>
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/10 to-accent/10 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <CardHeader className="relative">
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-base truncate">
+                        <CardTitle className="text-base truncate group-hover:text-primary transition-colors">
                           {recording.test_links?.title || 'Recording'}
                         </CardTitle>
                         {recording.status === 'ready' ? (
-                          <Play className="h-4 w-4 text-green-600" />
+                          <div className="p-2 rounded-lg bg-green-500/10">
+                            <Play className="h-4 w-4 text-green-600" />
+                          </div>
                         ) : (
-                          <div className="animate-pulse h-4 w-4 rounded-full bg-orange-500" />
+                          <div className="p-2 rounded-lg bg-orange-500/10">
+                            <div className="animate-pulse h-4 w-4 rounded-full bg-orange-500" />
+                          </div>
                         )}
                       </div>
-                      <CardDescription className="text-xs">
+                      <CardDescription className="text-xs mt-1">
                         {recording.test_links?.projects?.name ||
                           'Unknown Project'}
                       </CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="relative">
                       <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center">
                           <span className="text-muted-foreground">
                             Duration:
                           </span>
-                          <span>
+                          <span className="font-mono font-medium">
                             {recording.duration_ms
                               ? `${Math.round(recording.duration_ms / 1000)}s`
                               : 'N/A'}
                           </span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center">
                           <span className="text-muted-foreground">Status:</span>
-                          <span className="capitalize">{recording.status}</span>
+                          <span className="capitalize font-medium">
+                            {recording.status}
+                          </span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center">
                           <span className="text-muted-foreground">Date:</span>
-                          <span>
+                          <span className="font-medium">
                             {new Date(
                               recording.created_at
                             ).toLocaleDateString()}

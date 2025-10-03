@@ -115,8 +115,13 @@ export default function RecordingPlayer() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-purple-50/30 to-blue-50/30 dark:from-background dark:via-purple-950/10 dark:to-blue-950/10">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground animate-pulse">
+            Loading recording...
+          </p>
+        </div>
       </div>
     )
   }
@@ -142,28 +147,40 @@ export default function RecordingPlayer() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-background via-purple-50/30 to-blue-50/30 dark:from-background dark:via-purple-950/10 dark:to-blue-950/10 p-8">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-6">
-          <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
-            <ArrowLeft className="w-4 h-4 mr-2" />
+        <div className="mb-8 animate-in fade-in-0 slide-in-from-top-2 duration-500">
+          <Button
+            variant="ghost"
+            onClick={() => navigate(-1)}
+            className="mb-6 hover:bg-primary/10 hover:text-primary transition-all hover:-translate-x-1 group"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2 transition-transform group-hover:-translate-x-1" />
             Back
           </Button>
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-3xl font-bold">Recording</h1>
-              <p className="text-muted-foreground mt-1">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent mb-2">
+                Recording
+              </h1>
+              <p className="text-muted-foreground flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
                 {new Date(recording.created_at).toLocaleString()}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <Badge
                 variant={recording.status === 'ready' ? 'default' : 'secondary'}
+                className="px-4 py-1.5 text-sm font-medium shadow-lg"
               >
                 {recording.status}
               </Badge>
-              <Button onClick={handleDownload} variant="outline">
+              <Button
+                onClick={handleDownload}
+                variant="outline"
+                className="gradient-border hover:shadow-lg hover:shadow-primary/20 transition-all hover:-translate-y-0.5"
+              >
                 <Download className="w-4 h-4 mr-2" />
                 Download
               </Button>
@@ -171,9 +188,9 @@ export default function RecordingPlayer() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Video Player - Main Column */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 animate-in fade-in-0 slide-in-from-left-2 duration-500">
             <VideoPlayer
               recordingId={id!}
               manifest={manifest}
@@ -182,54 +199,79 @@ export default function RecordingPlayer() {
           </div>
 
           {/* Metadata Sidebar */}
-          <div className="space-y-4">
-            <Card>
+          <div className="space-y-6 animate-in fade-in-0 slide-in-from-right-2 duration-500">
+            <Card className="gradient-border hover:shadow-xl hover:shadow-primary/10 transition-all duration-300">
               <CardHeader>
-                <CardTitle>Details</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <span className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full" />
+                  Details
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div>
-                  <p className="text-sm text-muted-foreground">Duration</p>
-                  <p className="font-medium">
+              <CardContent className="space-y-4">
+                <div className="group hover:bg-muted/50 p-3 rounded-lg transition-colors">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+                    Duration
+                  </p>
+                  <p className="text-lg font-semibold text-foreground">
                     {formatDuration(manifest.duration)}
                   </p>
                 </div>
-                <Separator />
-                <div>
-                  <p className="text-sm text-muted-foreground">Resolution</p>
-                  <p className="font-medium">
-                    {manifest.width} x {manifest.height}
+                <Separator className="opacity-50" />
+                <div className="group hover:bg-muted/50 p-3 rounded-lg transition-colors">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+                    Resolution
+                  </p>
+                  <p className="text-lg font-semibold font-mono text-foreground">
+                    {manifest.width} × {manifest.height}
                   </p>
                 </div>
-                <Separator />
-                <div>
-                  <p className="text-sm text-muted-foreground">Codec</p>
-                  <p className="font-medium">{manifest.codecs}</p>
+                <Separator className="opacity-50" />
+                <div className="group hover:bg-muted/50 p-3 rounded-lg transition-colors">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+                    Codec
+                  </p>
+                  <p className="text-lg font-semibold font-mono text-foreground">
+                    {manifest.codecs}
+                  </p>
                 </div>
-                <Separator />
-                <div>
-                  <p className="text-sm text-muted-foreground">File Size</p>
-                  <p className="font-medium">
+                <Separator className="opacity-50" />
+                <div className="group hover:bg-muted/50 p-3 rounded-lg transition-colors">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+                    File Size
+                  </p>
+                  <p className="text-lg font-semibold text-foreground">
                     {formatBytes(manifest.totalBytes)}
                   </p>
                 </div>
-                <Separator />
-                <div>
-                  <p className="text-sm text-muted-foreground">Segments</p>
-                  <p className="font-medium">{manifest.totalParts} parts</p>
+                <Separator className="opacity-50" />
+                <div className="group hover:bg-muted/50 p-3 rounded-lg transition-colors">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+                    Segments
+                  </p>
+                  <p className="text-lg font-semibold text-foreground">
+                    {manifest.totalParts} parts
+                  </p>
                 </div>
               </CardContent>
             </Card>
 
             {/* Comments Placeholder */}
-            <Card>
+            <Card className="gradient-border hover:shadow-xl hover:shadow-primary/10 transition-all duration-300">
               <CardHeader>
-                <CardTitle>Comments</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <span className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full" />
+                  Comments
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Comments feature coming soon
-                </p>
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                    <span className="text-2xl">💬</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Comments feature coming soon
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </div>
