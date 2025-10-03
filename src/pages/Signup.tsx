@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuthStore } from '../store/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -79,6 +80,12 @@ export default function Signup() {
         setLoading(false)
         return
       }
+
+      // Wait a moment for the database trigger to create the membership
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+
+      // Load memberships to ensure the currentOrg is set
+      await useAuthStore.getState().loadMemberships()
 
       navigate('/app')
     } catch (err) {
