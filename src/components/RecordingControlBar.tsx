@@ -45,10 +45,33 @@ export function RecordingControlBar({
   maxDuration,
   uploadProgress,
 }: RecordingControlBarProps) {
-  const [isMinimized, setIsMinimized] = useState(false)
-  const [position, setPosition] = useState({ x: 20, y: 20 })
+  // Load saved state from localStorage
+  const [isMinimized, setIsMinimized] = useState(() => {
+    const saved = localStorage.getItem('recordingControlBar.minimized')
+    return saved ? JSON.parse(saved) : false
+  })
+  const [position, setPosition] = useState(() => {
+    const saved = localStorage.getItem('recordingControlBar.position')
+    return saved ? JSON.parse(saved) : { x: 20, y: 20 }
+  })
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+
+  // Save minimized state to localStorage
+  useEffect(() => {
+    localStorage.setItem(
+      'recordingControlBar.minimized',
+      JSON.stringify(isMinimized)
+    )
+  }, [isMinimized])
+
+  // Save position to localStorage
+  useEffect(() => {
+    localStorage.setItem(
+      'recordingControlBar.position',
+      JSON.stringify(position)
+    )
+  }, [position])
 
   // Handle dragging
   useEffect(() => {
