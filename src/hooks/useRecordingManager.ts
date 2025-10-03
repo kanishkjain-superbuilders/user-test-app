@@ -221,6 +221,7 @@ export function useRecordingManager(): RecordingManager {
         if (options.screen) {
           screenStream = await navigator.mediaDevices.getDisplayMedia({
             video: {
+              displaySurface: 'monitor',
               width: { ideal: 1920 },
               height: { ideal: 1080 },
               frameRate: { ideal: 30 },
