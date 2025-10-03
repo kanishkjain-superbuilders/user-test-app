@@ -77,7 +77,7 @@ export default function ProjectDetail() {
       if (project) {
         setCurrentProject(project)
         loadTestLinks(projectId)
-        loadRecordings()
+        loadRecordings(project)
       }
 
       setInitialLoading(false)
@@ -91,8 +91,9 @@ export default function ProjectDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId])
 
-  const loadRecordings = async () => {
-    if (!projectId || !currentProject) return
+  const loadRecordings = async (project?: typeof currentProject) => {
+    const projectToUse = project || currentProject
+    if (!projectId || !projectToUse) return
 
     try {
       setLoadingRecordings(true)
@@ -102,7 +103,7 @@ export default function ProjectDetail() {
         .from('test_links')
         .select<'id', { id: string }>('id')
         .eq('project_id', projectId)
-        .eq('org_id', currentProject.org_id) // Add org_id filter
+        .eq('org_id', projectToUse.org_id) // Add org_id filter
 
       if (testLinksError) throw testLinksError
 
@@ -118,7 +119,7 @@ export default function ProjectDetail() {
         .from('recordings')
         .select('*')
         .in('test_link_id', testLinkIds)
-        .eq('org_id', currentProject.org_id) // Add org_id filter
+        .eq('org_id', projectToUse.org_id) // Add org_id filter
         .order('created_at', { ascending: false })
 
       if (recordingsError) throw recordingsError
