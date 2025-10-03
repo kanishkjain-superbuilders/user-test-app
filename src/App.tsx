@@ -11,6 +11,8 @@ import TestLinkForm from './pages/TestLinkForm'
 import RecordingPlayer from './pages/RecordingPlayer'
 import LiveViewer from './pages/LiveViewer'
 import TesterFlow from './pages/TesterFlow'
+import OrganizationSettings from './pages/OrganizationSettings'
+import InviteMembers from './pages/InviteMembers'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuthStore()
@@ -44,6 +46,22 @@ function App() {
           element={
             <PrivateRoute>
               <Dashboard />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/app/organizations/:orgId/settings"
+          element={
+            <PrivateRoute>
+              <OrganizationSettings />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/app/organizations/:orgId/invite"
+          element={
+            <PrivateRoute>
+              <InviteMembers />
             </PrivateRoute>
           }
         />

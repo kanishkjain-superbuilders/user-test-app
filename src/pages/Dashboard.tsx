@@ -29,7 +29,16 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { ChevronDown, Plus, Folder, LogOut, Settings } from 'lucide-react'
+import {
+  ChevronDown,
+  Plus,
+  Folder,
+  LogOut,
+  Settings,
+  Users,
+  Bell,
+} from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -47,12 +56,52 @@ export default function Dashboard() {
   const [projectName, setProjectName] = useState('')
   const [projectDescription, setProjectDescription] = useState('')
   const [creating, setCreating] = useState(false)
+  const [pendingInvitesCount, setPendingInvitesCount] = useState(0)
 
   useEffect(() => {
     if (currentOrg) {
       loadProjects(currentOrg.id)
     }
   }, [currentOrg, loadProjects])
+
+  useEffect(() => {
+    if (user) {
+      checkPendingInvites()
+    }
+  }, [user])
+
+  const checkPendingInvites = async () => {
+    if (!user) return
+
+    try {
+      // Ensure we have a valid session before calling Edge Functions
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session) {
+        console.log('No session available for checking invites')
+        return
+      }
+
+      console.log(
+        'Session token:',
+        session.access_token ? 'Present' : 'Missing'
+      )
+      console.log('User email:', session.user?.email)
+
+      const { data, error } = await supabase.functions.invoke('list-my-invites')
+
+      if (error) {
+        console.error('list-my-invites error:', error)
+        console.error('Error details:', JSON.stringify(error, null, 2))
+      } else if (data?.invites) {
+        console.log('Found invites:', data.invites.length)
+        setPendingInvitesCount(data.invites.length)
+      }
+    } catch (error) {
+      console.error('Error checking invites:', error)
+    }
+  }
 
   const handleCreateProject = async () => {
     if (!currentOrg || !projectName.trim()) return
@@ -127,9 +176,7 @@ export default function Dashboard() {
                 {memberships.map((membership) => (
                   <DropdownMenuItem
                     key={membership.id}
-                    onClick={() =>
-                      membership.organization && switchOrg(membership.org_id)
-                    }
+                    onClick={() => switchOrg(membership.org_id)}
                     className={
                       currentOrg.id === membership.org_id ? 'bg-accent' : ''
                     }
@@ -137,29 +184,68 @@ export default function Dashboard() {
                     {membership.organization?.name}
                   </DropdownMenuItem>
                 ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() =>
+                    navigate(`/app/organizations/${currentOrg.id}/settings`)
+                  }
+                  className="gap-2"
+                >
+                  <Users className="h-4 w-4" />
+                  Organization Settings
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
 
-          {/* User Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Settings className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={handleSignOut}
-                className="text-destructive"
+          <div className="flex items-center gap-2">
+            {/* Pending Invites Notification */}
+            {pendingInvitesCount > 0 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate('/accept-invite')}
+                className="relative"
               >
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <Bell className="h-5 w-5" />
+                <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
+                  {pendingInvitesCount}
+                </span>
+              </Button>
+            )}
+
+            {/* User Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Settings className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {pendingInvitesCount > 0 && (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => navigate('/accept-invite')}
+                      className="gap-2"
+                    >
+                      <Bell className="h-4 w-4" />
+                      Pending Invites ({pendingInvitesCount})
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                <DropdownMenuItem
+                  onClick={handleSignOut}
+                  className="text-destructive"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </header>
 
