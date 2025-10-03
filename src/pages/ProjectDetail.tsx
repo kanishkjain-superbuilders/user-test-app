@@ -92,7 +92,7 @@ export default function ProjectDetail() {
   }, [projectId])
 
   const loadRecordings = async () => {
-    if (!projectId) return
+    if (!projectId || !currentProject) return
 
     try {
       setLoadingRecordings(true)
@@ -102,6 +102,7 @@ export default function ProjectDetail() {
         .from('test_links')
         .select<'id', { id: string }>('id')
         .eq('project_id', projectId)
+        .eq('org_id', currentProject.org_id) // Add org_id filter
 
       if (testLinksError) throw testLinksError
 
@@ -112,11 +113,12 @@ export default function ProjectDetail() {
 
       const testLinkIds = projectTestLinks.map((tl) => tl.id)
 
-      // Get recordings for these test links
+      // Get recordings for these test links, also filtered by org_id
       const { data: recordingsData, error: recordingsError } = await supabase
         .from('recordings')
         .select('*')
         .in('test_link_id', testLinkIds)
+        .eq('org_id', currentProject.org_id) // Add org_id filter
         .order('created_at', { ascending: false })
 
       if (recordingsError) throw recordingsError
