@@ -151,7 +151,7 @@ export default function LiveViewer() {
         toast.error(
           error instanceof Error ? error.message : 'Failed to join session'
         )
-        navigate('/dashboard')
+        navigate('/app')
       } finally {
         setIsJoining(false)
       }
@@ -267,9 +267,9 @@ export default function LiveViewer() {
       toast.success('Recording ended successfully. Video upload will begin.')
       setShowEndDialog(false)
 
-      // Navigate back to dashboard after a short delay
+      // Navigate back to app after a short delay
       setTimeout(() => {
-        navigate('/dashboard')
+        navigate('/app')
       }, 2000)
     } catch (error) {
       console.error('Failed to end recording:', error)
@@ -305,8 +305,8 @@ export default function LiveViewer() {
             <div className="flex flex-col items-center space-y-4">
               <AlertCircle className="h-8 w-8 text-destructive" />
               <p className="text-lg font-medium">Session not available</p>
-              <Button onClick={() => navigate('/dashboard')}>
-                Go to Dashboard
+              <Button onClick={() => navigate('/app')}>
+                Go to App
               </Button>
             </div>
           </CardContent>
