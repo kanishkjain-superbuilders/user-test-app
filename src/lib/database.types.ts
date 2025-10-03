@@ -137,30 +137,39 @@ export type Database = {
       live_sessions: {
         Row: {
           id: string
+          project_id: string
           test_link_id: string
-          tester_anon_id: string | null
-          status: 'starting' | 'live' | 'ended'
-          started_at: string | null
+          broadcaster_id: string
+          channel_name: string
+          max_viewers: number
+          status: 'active' | 'ended'
+          started_at: string
           ended_at: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
+          project_id: string
           test_link_id: string
-          tester_anon_id?: string | null
-          status?: 'starting' | 'live' | 'ended'
-          started_at?: string | null
+          broadcaster_id: string
+          channel_name: string
+          max_viewers?: number
+          status?: 'active' | 'ended'
+          started_at?: string
           ended_at?: string | null
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
+          project_id?: string
           test_link_id?: string
-          tester_anon_id?: string | null
-          status?: 'starting' | 'live' | 'ended'
-          started_at?: string | null
+          broadcaster_id?: string
+          channel_name?: string
+          max_viewers?: number
+          status?: 'active' | 'ended'
+          started_at?: string
           ended_at?: string | null
           created_at?: string
           updated_at?: string
@@ -169,8 +178,9 @@ export type Database = {
       live_viewers: {
         Row: {
           id: string
-          live_session_id: string
-          user_id: string | null
+          session_id: string
+          viewer_id: string
+          status: 'active' | 'disconnected'
           joined_at: string
           left_at: string | null
           created_at: string
@@ -178,8 +188,9 @@ export type Database = {
         }
         Insert: {
           id?: string
-          live_session_id: string
-          user_id?: string | null
+          session_id: string
+          viewer_id: string
+          status?: 'active' | 'disconnected'
           joined_at?: string
           left_at?: string | null
           created_at?: string
@@ -187,8 +198,9 @@ export type Database = {
         }
         Update: {
           id?: string
-          live_session_id?: string
-          user_id?: string | null
+          session_id?: string
+          viewer_id?: string
+          status?: 'active' | 'disconnected'
           joined_at?: string
           left_at?: string | null
           created_at?: string

@@ -8,13 +8,23 @@ type Comment = Database['public']['Tables']['comments']['Row']
 
 interface PresenceState {
   role: 'broadcaster' | 'viewer'
-  userId?: string
+  userId: string
   displayName: string
+  joinedAt: string
 }
 
 interface PeerConnection {
   pc: RTCPeerConnection
   stream?: MediaStream
+  role: 'broadcaster' | 'viewer'
+  userId: string
+}
+
+interface SignalData {
+  type: 'offer' | 'answer' | 'ice-candidate'
+  from: string
+  to: string
+  data: RTCSessionDescriptionInit | RTCIceCandidateInit
 }
 
 interface LiveState {
@@ -23,18 +33,43 @@ interface LiveState {
   presence: Record<string, PresenceState>
   peerConnections: Map<string, PeerConnection>
   localStream: MediaStream | null
+  remoteStreams: Map<string, MediaStream>
   comments: Comment[]
   viewerCount: number
+  isBroadcaster: boolean
+  connectionState: 'disconnected' | 'connecting' | 'connected' | 'failed'
 
   // Actions
   setLiveSession: (session: LiveSession | null) => void
-  initChannel: (channelName: string) => void
+  initChannel: (
+    channelName: string,
+    role: 'broadcaster' | 'viewer',
+    userId: string
+  ) => Promise<void>
   cleanup: () => void
-  addPeerConnection: (peerId: string, pc: RTCPeerConnection) => void
+  createPeerConnection: (
+    peerId: string,
+    role: 'broadcaster' | 'viewer',
+    userId: string
+  ) => RTCPeerConnection
   removePeerConnection: (peerId: string) => void
   setLocalStream: (stream: MediaStream | null) => void
+  addRemoteStream: (peerId: string, stream: MediaStream) => void
+  removeRemoteStream: (peerId: string) => void
   addComment: (comment: Comment) => void
-  sendSignal: (signal: unknown) => void
+  sendSignal: (signal: SignalData) => void
+  handleSignal: (signal: SignalData) => Promise<void>
+  setConnectionState: (
+    state: 'disconnected' | 'connecting' | 'connected' | 'failed'
+  ) => void
+}
+
+// ICE servers configuration
+const ICE_SERVERS: RTCConfiguration = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+  ],
 }
 
 export const useLiveStore = create<LiveState>((set, get) => ({
@@ -43,16 +78,28 @@ export const useLiveStore = create<LiveState>((set, get) => ({
   presence: {},
   peerConnections: new Map(),
   localStream: null,
+  remoteStreams: new Map(),
   comments: [],
   viewerCount: 0,
+  isBroadcaster: false,
+  connectionState: 'disconnected',
 
   setLiveSession: (session) => set({ liveSession: session }),
 
-  initChannel: (channelName: string) => {
+  initChannel: async (
+    channelName: string,
+    role: 'broadcaster' | 'viewer',
+    userId: string
+  ) => {
     const channel = supabase.channel(channelName, {
       config: {
-        presence: { key: '' },
+        presence: { key: userId },
       },
+    })
+
+    set({
+      isBroadcaster: role === 'broadcaster',
+      connectionState: 'connecting',
     })
 
     channel
@@ -63,28 +110,77 @@ export const useLiveStore = create<LiveState>((set, get) => ({
 
         Object.keys(state).forEach((key) => {
           const [user] = state[key]
-          if (user && 'role' in user && 'displayName' in user) {
-            presenceMap[key] = user as PresenceState
-            if ((user as PresenceState).role === 'viewer') viewerCount++
+          if (
+            user &&
+            typeof user === 'object' &&
+            'role' in user &&
+            'displayName' in user
+          ) {
+            presenceMap[key] = user as unknown as PresenceState
+            if ((user as unknown as PresenceState).role === 'viewer')
+              viewerCount++
           }
         })
 
         set({ presence: presenceMap, viewerCount })
       })
+      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+        const newUser = newPresences[0] as unknown as PresenceState
+        if (!newUser) return
+
+        const { isBroadcaster } = get()
+
+        // If we're the broadcaster and a viewer joined, create offer
+        if (isBroadcaster && newUser.role === 'viewer') {
+          const pc = get().createPeerConnection(key, 'viewer', newUser.userId)
+
+          // Create and send offer
+          pc.createOffer().then((offer) => {
+            pc.setLocalDescription(offer)
+            get().sendSignal({
+              type: 'offer',
+              from: 'broadcaster', // Always use 'broadcaster' as the from ID
+              to: newUser.userId,
+              data: offer,
+            })
+          })
+        }
+      })
+      .on('presence', { event: 'leave' }, ({ key }) => {
+        // Clean up peer connection when user leaves
+        get().removePeerConnection(key)
+        get().removeRemoteStream(key)
+      })
       .on('broadcast', { event: 'signal' }, ({ payload }) => {
         // Handle WebRTC signaling
-        window.dispatchEvent(new CustomEvent('rtc-signal', { detail: payload }))
+        const signal = payload as SignalData
+        get().handleSignal(signal)
       })
       .on('broadcast', { event: 'comment' }, ({ payload }) => {
         set((state) => ({ comments: [...state.comments, payload as Comment] }))
       })
-      .subscribe()
+      .on('broadcast', { event: 'session-ended' }, () => {
+        // Handle session end
+        get().cleanup()
+        set({ connectionState: 'disconnected' })
+      })
 
-    set({ channel })
+    await channel.subscribe()
+
+    // Track our presence
+    await channel.track({
+      role,
+      userId,
+      displayName:
+        role === 'broadcaster' ? 'Broadcaster' : `Viewer ${userId.slice(0, 8)}`,
+      joinedAt: new Date().toISOString(),
+    } as PresenceState)
+
+    set({ channel, connectionState: 'connected' })
   },
 
   cleanup: () => {
-    const { channel, peerConnections, localStream } = get()
+    const { channel, peerConnections, localStream, remoteStreams } = get()
 
     // Close all peer connections
     peerConnections.forEach((conn) => {
@@ -96,8 +192,14 @@ export const useLiveStore = create<LiveState>((set, get) => ({
       localStream.getTracks().forEach((track) => track.stop())
     }
 
+    // Stop remote streams
+    remoteStreams.forEach((stream) => {
+      stream.getTracks().forEach((track) => track.stop())
+    })
+
     // Unsubscribe from channel
     if (channel) {
+      channel.untrack()
       supabase.removeChannel(channel)
     }
 
@@ -105,17 +207,65 @@ export const useLiveStore = create<LiveState>((set, get) => ({
       channel: null,
       peerConnections: new Map(),
       localStream: null,
+      remoteStreams: new Map(),
       presence: {},
       comments: [],
       viewerCount: 0,
+      connectionState: 'disconnected',
     })
   },
 
-  addPeerConnection: (peerId, pc) => {
-    const { peerConnections } = get()
+  createPeerConnection: (peerId, role, userId) => {
+    const { peerConnections, localStream } = get()
+
+    // Create new peer connection
+    const pc = new RTCPeerConnection(ICE_SERVERS)
+
+    // Add local stream tracks
+    if (localStream) {
+      localStream.getTracks().forEach((track) => {
+        pc.addTrack(track, localStream)
+      })
+    }
+
+    // Handle ICE candidates
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        get().sendSignal({
+          type: 'ice-candidate',
+          from: get().isBroadcaster ? 'broadcaster' : userId,
+          to: get().isBroadcaster ? peerId : 'broadcaster', // Viewers always send to broadcaster
+          data: event.candidate.toJSON(),
+        })
+      }
+    }
+
+    // Handle remote stream
+    pc.ontrack = (event) => {
+      const [remoteStream] = event.streams
+      if (remoteStream) {
+        get().addRemoteStream(peerId, remoteStream)
+      }
+    }
+
+    // Handle connection state changes
+    pc.onconnectionstatechange = () => {
+      console.log(`Peer connection state (${peerId}):`, pc.connectionState)
+      if (
+        pc.connectionState === 'failed' ||
+        pc.connectionState === 'disconnected'
+      ) {
+        get().removePeerConnection(peerId)
+        get().removeRemoteStream(peerId)
+      }
+    }
+
+    // Store the connection
     const newConnections = new Map(peerConnections)
-    newConnections.set(peerId, { pc })
+    newConnections.set(peerId, { pc, role, userId })
     set({ peerConnections: newConnections })
+
+    return pc
   },
 
   removePeerConnection: (peerId) => {
@@ -131,6 +281,24 @@ export const useLiveStore = create<LiveState>((set, get) => ({
 
   setLocalStream: (stream) => set({ localStream: stream }),
 
+  addRemoteStream: (peerId, stream) => {
+    const { remoteStreams } = get()
+    const newStreams = new Map(remoteStreams)
+    newStreams.set(peerId, stream)
+    set({ remoteStreams: newStreams })
+  },
+
+  removeRemoteStream: (peerId) => {
+    const { remoteStreams } = get()
+    const stream = remoteStreams.get(peerId)
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop())
+      const newStreams = new Map(remoteStreams)
+      newStreams.delete(peerId)
+      set({ remoteStreams: newStreams })
+    }
+  },
+
   addComment: (comment) => {
     set((state) => ({ comments: [...state.comments, comment] }))
   },
@@ -145,4 +313,57 @@ export const useLiveStore = create<LiveState>((set, get) => ({
       })
     }
   },
+
+  handleSignal: async (signal) => {
+    const { peerConnections, isBroadcaster } = get()
+
+    // Determine our ID
+    const myId = isBroadcaster ? 'broadcaster' : signal.to
+
+    // Ignore signals not meant for us
+    if (signal.to !== myId) return
+
+    let pc = peerConnections.get(signal.from)?.pc
+
+    // Create peer connection if it doesn't exist (viewer receiving offer from broadcaster)
+    if (!pc && signal.type === 'offer') {
+      pc = get().createPeerConnection('broadcaster', 'broadcaster', myId)
+    }
+
+    if (!pc) {
+      console.warn('No peer connection for signal from', signal.from)
+      return
+    }
+
+    switch (signal.type) {
+      case 'offer': {
+        await pc.setRemoteDescription(
+          new RTCSessionDescription(signal.data as RTCSessionDescriptionInit)
+        )
+        const answer = await pc.createAnswer()
+        await pc.setLocalDescription(answer)
+        get().sendSignal({
+          type: 'answer',
+          from: myId,
+          to: 'broadcaster', // Always send answer back to broadcaster
+          data: answer,
+        })
+        break
+      }
+
+      case 'answer':
+        await pc.setRemoteDescription(
+          new RTCSessionDescription(signal.data as RTCSessionDescriptionInit)
+        )
+        break
+
+      case 'ice-candidate':
+        await pc.addIceCandidate(
+          new RTCIceCandidate(signal.data as RTCIceCandidateInit)
+        )
+        break
+    }
+  },
+
+  setConnectionState: (state) => set({ connectionState: state }),
 }))

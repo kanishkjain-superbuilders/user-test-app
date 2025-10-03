@@ -357,3 +357,126 @@ export async function cleanupOldUploads(daysOld: number = 7): Promise<number> {
     }
   })
 }
+
+/**
+ * Clean up orphaned uploads (failed or pending for too long)
+ */
+export async function cleanupOrphanedUploads(hoursOld: number = 24): Promise<{
+  deleted: number
+  reset: number
+}> {
+  const db = await openDatabase()
+  const transaction = db.transaction([STORE_NAME], 'readwrite')
+  const store = transaction.objectStore(STORE_NAME)
+
+  const cutoffDate = new Date()
+  cutoffDate.setHours(cutoffDate.getHours() - hoursOld)
+
+  return new Promise((resolve, reject) => {
+    const request = store.getAll()
+
+    request.onsuccess = () => {
+      const items = request.result as UploadQueueItem[]
+      let deletedCount = 0
+      let resetCount = 0
+      let processedCount = 0
+
+      const orphaned = items.filter((item) => {
+        // Check if it's an orphaned upload
+        if (item.status === 'uploaded') return false
+
+        const itemDate = new Date(item.createdAt)
+        return itemDate < cutoffDate
+      })
+
+      if (orphaned.length === 0) {
+        db.close()
+        resolve({ deleted: 0, reset: 0 })
+        return
+      }
+
+      orphaned.forEach((item) => {
+        // Failed items with too many retries - delete
+        if (item.status === 'failed' && item.retries >= 3) {
+          const deleteRequest = store.delete(item.id)
+          deleteRequest.onsuccess = () => {
+            deletedCount++
+            processedCount++
+            if (processedCount === orphaned.length) {
+              db.close()
+              resolve({ deleted: deletedCount, reset: resetCount })
+            }
+          }
+          deleteRequest.onerror = () => {
+            processedCount++
+            if (processedCount === orphaned.length) {
+              db.close()
+              resolve({ deleted: deletedCount, reset: resetCount })
+            }
+          }
+        }
+        // Pending or uploading items - reset to pending for retry
+        else {
+          const updatedItem = {
+            ...item,
+            status: 'pending' as const,
+            retries: 0,
+          }
+          const putRequest = store.put(updatedItem)
+          putRequest.onsuccess = () => {
+            resetCount++
+            processedCount++
+            if (processedCount === orphaned.length) {
+              db.close()
+              resolve({ deleted: deletedCount, reset: resetCount })
+            }
+          }
+          putRequest.onerror = () => {
+            processedCount++
+            if (processedCount === orphaned.length) {
+              db.close()
+              resolve({ deleted: deletedCount, reset: resetCount })
+            }
+          }
+        }
+      })
+    }
+
+    request.onerror = () => {
+      db.close()
+      reject(new Error('Failed to get uploads for cleanup'))
+    }
+  })
+}
+
+/**
+ * Get all recordings with pending uploads
+ */
+export async function getRecordingsWithPendingUploads(): Promise<string[]> {
+  const db = await openDatabase()
+  const transaction = db.transaction([STORE_NAME], 'readonly')
+  const store = transaction.objectStore(STORE_NAME)
+
+  return new Promise((resolve, reject) => {
+    const request = store.getAll()
+
+    request.onsuccess = () => {
+      const items = request.result as UploadQueueItem[]
+      const recordingIds = new Set<string>()
+
+      items.forEach((item) => {
+        if (item.status === 'pending' || item.status === 'failed') {
+          recordingIds.add(item.recordingId)
+        }
+      })
+
+      db.close()
+      resolve(Array.from(recordingIds))
+    }
+
+    request.onerror = () => {
+      db.close()
+      reject(new Error('Failed to get recordings with pending uploads'))
+    }
+  })
+}

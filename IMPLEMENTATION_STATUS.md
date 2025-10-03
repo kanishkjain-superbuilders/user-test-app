@@ -3,8 +3,8 @@
 ## Overview
 This document tracks the implementation progress of the User Testing Platform based on the product spec.
 
-**Last Updated**: October 2, 2025
-**Overall Progress**: ~80% (Foundation + UI + Core Features + Recording + Playback complete)
+**Last Updated**: October 3, 2025
+**Overall Progress**: ~90% (Foundation + UI + Core Features + Recording + Playback + Live Streaming complete)
 
 ---
 
@@ -200,6 +200,16 @@ This document tracks the implementation progress of the User Testing Platform ba
 - [x] Permission request flows integrated
 - [x] Browser compatibility checks (`isBrowserSupported()`)
 
+### Upload Resilience Improvements ✨ NEW (Oct 3, 2025)
+- [x] Auto-retry failed uploads on page reload
+- [x] Network connectivity detection with online/offline handling
+- [x] Upload progress persistence in localStorage
+- [x] Exponential backoff with jitter for retries
+- [x] Orphaned upload cleanup (24hr for failed, 7d for completed)
+- [x] Resume interrupted uploads across sessions
+- [x] Upload timeout protection (30s per chunk)
+- [x] Enhanced error recovery and logging
+
 ### Storage Integration
 - [x] Signed URL generation for uploads (`supabase/functions/issue-upload-url`)
 - [x] Part upload to Supabase Storage
@@ -243,26 +253,44 @@ This document tracks the implementation progress of the User Testing Platform ba
 
 ---
 
-## 📋 Phase 5: Live Streaming (WebRTC) (0%)
+## ✅ Phase 5: Live Streaming for Test Sessions (COMPLETE - Oct 3, 2025)
 
-### Signaling Layer
-- [ ] Supabase Realtime integration
-- [ ] Offer/Answer exchange
-- [ ] ICE candidate handling
-- [ ] Presence management
+### Architecture (Revised Oct 3, 2025)
+- [x] Integrated live streaming into test recording flow
+- [x] Automatic broadcasting when testers record
+- [x] No separate broadcasting UI for app users
+- [x] Organization-only viewing access
 
-### Broadcaster
-- [ ] RTCPeerConnection per viewer
-- [ ] Stream publishing
-- [ ] Viewer cap enforcement (5 max)
-- [ ] Mesh topology management
+### Test Recording Integration (`src/hooks/useRecordingManager.ts`)
+- [x] WebRTC broadcasting alongside MediaRecorder
+- [x] Automatic live session creation for recordings
+- [x] Transparent streaming (no UI changes for testers)
+- [x] Anonymous tester broadcasting support
+- [x] Graceful degradation if streaming fails
 
-### Viewer
-- [ ] Live session join flow
-- [ ] Stream subscription
-- [ ] Latency monitoring
-- [ ] Viewer count display
-- [ ] Comment system
+### Live Test Viewer (`src/pages/LiveViewer.tsx`)
+- [x] Test session information display
+- [x] Stream subscription and playback
+- [x] Connection state monitoring
+- [x] Viewer count and presence
+- [x] Comment system with real-time sync
+- [x] Authentication required (org members only)
+- [x] Test link details shown during viewing
+
+### Dashboard Integration (`src/pages/ProjectDetail.tsx`)
+- [x] Live Sessions tab with active test count
+- [x] Real-time test session cards
+- [x] Tester identification
+- [x] Viewer count per session
+- [x] One-click "Watch Live" buttons
+- [x] Auto-refresh every 10 seconds
+
+### Database & Access Control
+- [x] Linked recordings to live_sessions
+- [x] Anonymous tester support in RLS
+- [x] Organization member viewing enforcement
+- [x] SQL functions for session management
+- [x] Proper cascade relationships
 
 ---
 
@@ -308,7 +336,7 @@ This document tracks the implementation progress of the User Testing Platform ba
 
 ---
 
-## 📋 Supabase Edge Functions (38%)
+## ✅ Supabase Edge Functions (75%)
 
 Implemented in `supabase/functions/`:
 
@@ -316,8 +344,8 @@ Implemented in `supabase/functions/`:
 - [ ] `accept-invite` - Convert invite to membership
 - [x] `issue-upload-url` - Generate signed PUT URLs for chunks ✅
 - [x] `finalize-recording` - Post-processing workflow ✅
-- [ ] `start-live-session` - Create session with viewer cap
-- [ ] `end-live-session` - Close session cleanup
+- [x] `start-live-session` - Create session with viewer cap ✅ NEW
+- [x] `end-live-session` - Close session cleanup ✅ NEW
 - [x] `sign-playback-url` - Generate signed GET URLs ✅
 - [ ] `list-recordings` - Paginated recording list
 
@@ -380,6 +408,7 @@ All core components built and integrated.
    - ~~Chunked upload to Supabase Storage~~ ✅
    - ~~Floating recording control bar~~ ✅
    - ~~Recording state management~~ ✅
+   - ~~Upload resilience improvements~~ ✅ NEW
 6. ~~**Medium**: Edge Functions for upload/finalize~~ ✅ COMPLETE
    - ~~issue-upload-url for signed PUT URLs~~ ✅
    - ~~finalize-recording for post-processing~~ ✅
@@ -393,12 +422,13 @@ All core components built and integrated.
    - ~~Timeline controls~~ ✅
    - ~~sign-playback-url Edge Function~~ ✅
    - ~~Recordings list in ProjectDetail~~ ✅
-9. **Medium**: WebRTC live streaming
-   - Signaling via Supabase Realtime
-   - Broadcaster/Viewer implementation
-   - LiveViewer page
-10. **Low**: Comments system
-11. **Low**: Observability & cleanup
+9. ~~**Medium**: WebRTC live streaming~~ ✅ COMPLETE (Oct 3, 2025)
+   - ~~Signaling via Supabase Realtime~~ ✅
+   - ~~Broadcaster/Viewer implementation~~ ✅
+   - ~~LiveViewer page~~ ✅
+   - ~~Comments system~~ ✅
+10. **Low**: Organization invites & member management
+11. **Low**: Observability & analytics dashboard
 
 ---
 

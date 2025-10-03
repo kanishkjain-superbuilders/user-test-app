@@ -107,12 +107,14 @@ export default function TesterFlow() {
 
       setRecordingId(recordingId)
 
-      // Start recording
+      // Start recording with live streaming enabled
       await recordingManager.startRecording(recordingId, {
         screen: opts.screen,
         mic: opts.mic,
         cam: opts.cam,
         maxDurationSec: opts.maxDurationSec,
+        enableLiveStream: true, // Enable live streaming for test sessions
+        testLinkId: testLink.id,
       })
 
       setFlowState('recording')

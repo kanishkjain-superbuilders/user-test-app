@@ -17,6 +17,9 @@ import {
   Trash2,
   Video,
   Play,
+  Radio,
+  Users,
+  Eye,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDuration } from '@/lib/recording-utils'
@@ -42,6 +45,19 @@ export default function ProjectDetail() {
   const [recordings, setRecordings] = useState<Recording[]>([])
   const [loadingRecordings, setLoadingRecordings] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
+  const [liveTestSessions, setLiveTestSessions] = useState<
+    {
+      session_id: string
+      recording_id: string
+      test_link_id: string
+      test_link_title: string
+      tester_id: string
+      channel_name: string
+      started_at: string
+      viewer_count: number
+    }[]
+  >([])
+  const [loadingLiveSessions, setLoadingLiveSessions] = useState(false)
 
   useEffect(() => {
     const loadProjectData = async () => {
@@ -127,6 +143,40 @@ export default function ProjectDetail() {
     }
   }
 
+  const loadLiveTestSessions = async () => {
+    if (!projectId) return
+
+    try {
+      setLoadingLiveSessions(true)
+
+      // Get active test sessions for this project
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.rpc as any)(
+        'get_project_test_sessions',
+        {
+          p_project_id: projectId,
+        }
+      )
+
+      if (error) throw error
+
+      setLiveTestSessions(data || [])
+    } catch (error) {
+      console.error('Error loading live sessions:', error)
+      // Don't show error toast as live sessions are optional
+    } finally {
+      setLoadingLiveSessions(false)
+    }
+  }
+
+  // Load live sessions periodically
+  useEffect(() => {
+    loadLiveTestSessions()
+    const interval = setInterval(loadLiveTestSessions, 10000) // Refresh every 10 seconds
+    return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId])
+
   // Show loading spinner while auth or initial project load is happening
   if (authLoading || initialLoading || projectsLoading) {
     return (
@@ -191,6 +241,20 @@ export default function ProjectDetail() {
             <TabsTrigger value="test-links">Test Links</TabsTrigger>
             <TabsTrigger value="recordings">
               Recordings ({recordings.length})
+            </TabsTrigger>
+            <TabsTrigger value="live-sessions" className="relative">
+              <div className="flex items-center gap-1.5">
+                <Radio className="h-3 w-3" />
+                Live Sessions
+                {liveTestSessions.length > 0 && (
+                  <Badge
+                    variant="destructive"
+                    className="ml-1.5 h-5 min-w-[20px] px-1"
+                  >
+                    {liveTestSessions.length}
+                  </Badge>
+                )}
+              </div>
             </TabsTrigger>
           </TabsList>
 
@@ -396,6 +460,100 @@ export default function ProjectDetail() {
                         <Separator />
                         <div className="text-xs text-muted-foreground">
                           {new Date(recording.created_at).toLocaleString()}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Live Test Sessions Tab */}
+          <TabsContent value="live-sessions">
+            <div className="space-y-6">
+              {loadingLiveSessions ? (
+                <Card>
+                  <CardContent className="flex items-center justify-center py-12">
+                    <p className="text-muted-foreground">
+                      Loading live sessions...
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : liveTestSessions.length === 0 ? (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center py-12">
+                    <Radio className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">
+                      No Active Test Sessions
+                    </h3>
+                    <p className="text-muted-foreground text-center">
+                      Live test sessions will appear here when testers are
+                      actively recording
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {liveTestSessions.map((session) => (
+                    <Card
+                      key={session.session_id}
+                      className="hover:shadow-lg transition-shadow"
+                    >
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <CardTitle className="text-base">
+                              {session.test_link_title}
+                            </CardTitle>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Badge
+                                variant="destructive"
+                                className="animate-pulse"
+                              >
+                                <Radio className="h-3 w-3 mr-1" />
+                                LIVE
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(
+                                  session.started_at
+                                ).toLocaleTimeString()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">
+                              Tester:
+                            </span>
+                            <span className="font-medium">
+                              {session.tester_id?.slice(0, 8) || 'Anonymous'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">
+                              Viewers:
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <Users className="h-3 w-3" />
+                              <span className="font-medium">
+                                {session.viewer_count || 0}
+                              </span>
+                            </div>
+                          </div>
+                          <Separator />
+                          <Button
+                            className="w-full gap-2"
+                            onClick={() =>
+                              navigate(`/app/live/${session.session_id}`)
+                            }
+                          >
+                            <Eye className="h-4 w-4" />
+                            Watch Live
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>

@@ -2,6 +2,8 @@ import { useCallback, useRef, useState } from 'react'
 import { getBestMimeType, generateManifest } from '../lib/recording-utils'
 import { addToUploadQueue } from '../lib/upload-db'
 import { useRecordingStore } from '../store/recording'
+import { useLiveStore } from '../store/live'
+import { supabase } from '../lib/supabase'
 
 export interface RecordingOptions {
   screen: boolean
@@ -9,6 +11,8 @@ export interface RecordingOptions {
   cam: boolean
   maxDurationSec: number
   timesliceMs?: number // Chunk duration in milliseconds (default: 5000)
+  enableLiveStream?: boolean // Enable live streaming while recording
+  testLinkId?: string // Test link ID for live session
 }
 
 export interface RecordingState {
@@ -16,6 +20,7 @@ export interface RecordingState {
   isPaused: boolean
   duration: number // Elapsed time in seconds
   error: string | null
+  liveSessionId?: string // Live session ID if streaming
 }
 
 export interface RecordingManager {
@@ -37,6 +42,7 @@ export function useRecordingManager(): RecordingManager {
     isPaused: false,
     duration: 0,
     error: null,
+    liveSessionId: undefined,
   })
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -64,11 +70,31 @@ export function useRecordingManager(): RecordingManager {
   })
 
   const { setManifest } = useRecordingStore()
+  const liveStore = useLiveStore()
+  const liveSessionRef = useRef<string | null>(null)
+  const testerIdRef = useRef<string>(
+    `tester-${Math.random().toString(36).substr(2, 9)}`
+  )
 
   /**
    * Cleanup all media streams and resources
    */
-  const cleanup = useCallback(() => {
+
+  const cleanup = useCallback(async () => {
+    // End live session if active
+    if (liveSessionRef.current) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase.rpc as any)('end_test_live_session', {
+          p_session_id: liveSessionRef.current,
+          p_tester_id: testerIdRef.current,
+        })
+        liveStore.cleanup()
+        liveSessionRef.current = null
+      } catch (error) {
+        console.error('Failed to end live session:', error)
+      }
+    }
     // Stop all tracks
     Object.values(streamsRef.current).forEach((stream) => {
       stream?.getTracks().forEach((track) => track.stop())
@@ -276,6 +302,47 @@ export function useRecordingManager(): RecordingManager {
 
         streamsRef.current.combined = combinedStream
 
+        // Initialize live streaming if enabled
+        if (options.enableLiveStream && options.testLinkId) {
+          try {
+            // Create channel name
+            const channelName = `test-session-${recordingId}-${Date.now()}`
+
+            // Create live session via RPC
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: sessionId, error } = await (supabase.rpc as any)(
+              'create_test_live_session',
+              {
+                p_recording_id: recordingId,
+                p_test_link_id: options.testLinkId,
+                p_tester_id: testerIdRef.current,
+                p_channel_name: channelName,
+              }
+            )
+
+            if (error || !sessionId) {
+              console.error('Failed to create live session:', error)
+              // Continue recording even if live streaming fails
+            } else {
+              liveSessionRef.current = sessionId
+
+              // Initialize WebRTC broadcasting
+              await liveStore.initChannel(
+                channelName,
+                'broadcaster',
+                testerIdRef.current
+              )
+              liveStore.setLocalStream(combinedStream)
+
+              setState((prev) => ({ ...prev, liveSessionId: sessionId }))
+              console.log('Live streaming started for session:', sessionId)
+            }
+          } catch (error) {
+            console.error('Failed to start live streaming:', error)
+            // Continue recording even if live streaming fails
+          }
+        }
+
         // Determine MIME type
         const hasVideo = options.screen || options.cam
         const hasAudio = options.mic
@@ -359,6 +426,7 @@ export function useRecordingManager(): RecordingManager {
         throw error
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [cleanup, startTimer, stopRecording]
   )
 
