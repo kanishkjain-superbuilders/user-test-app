@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { Database } from '../lib/database.types'
+import type { RecordingManifest } from '../lib/recording-utils'
 
 type Recording = Database['public']['Tables']['recordings']['Row']
 type RecordingSegment =
@@ -12,16 +13,7 @@ interface UploadQueueItem {
   retries: number
 }
 
-interface RecordingManifest {
-  recordingId: string
-  mimeType: string
-  codecs: string
-  totalParts: number
-  totalBytes: number
-  duration: number
-  width: number
-  height: number
-}
+// Use shared RecordingManifest type from lib/recording-utils
 
 interface RecordingState {
   recording: Recording | null

@@ -119,7 +119,8 @@ serve(async (req) => {
     }
 
     // Upload manifest to storage
-    const manifestPath = `recordings/${recordingId}/manifest.json`
+    // Path relative to bucket
+    const manifestPath = `${recordingId}/manifest.json`
     const manifestBlob = new Blob([JSON.stringify(manifest, null, 2)], {
       type: 'application/json',
     })
@@ -175,7 +176,7 @@ serve(async (req) => {
       segments.push({
         recording_id: recordingId,
         part_index: i,
-        storage_path: `recordings/${recordingId}/part-${i.toString().padStart(5, '0')}.webm`,
+        storage_path: `${recordingId}/part-${i.toString().padStart(5, '0')}.webm`,
         mime_type: manifest.mimeType,
       })
     }

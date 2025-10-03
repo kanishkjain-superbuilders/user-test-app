@@ -50,12 +50,9 @@ export default function RecordingPlayer() {
       setRecording(recordingData)
 
       // Fetch manifest from storage
-      const manifestPath = `recordings/${id}/manifest.json`
+      const manifestPath = `${id}/manifest.json`
 
       const { data: session } = await supabase.auth.getSession()
-      if (!session?.session?.access_token) {
-        throw new Error('Not authenticated')
-      }
 
       // Get signed URL for manifest
       const signedUrlResponse = await fetch(
@@ -64,7 +61,9 @@ export default function RecordingPlayer() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.session.access_token}`,
+            Authorization: session?.session?.access_token
+              ? `Bearer ${session.session.access_token}`
+              : `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           },
           body: JSON.stringify({
             recordingId: id,

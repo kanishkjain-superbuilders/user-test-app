@@ -111,8 +111,10 @@ serve(async (req) => {
     // Determine file extension from MIME type
     const extension = mimeType.includes('video') ? 'webm' : 'webm'
 
-    // Generate storage path
-    const storagePath = `recordings/${recordingId}/part-${partIndex.toString().padStart(5, '0')}.${extension}`
+    // Generate storage path (relative to bucket)
+    const storagePath = `${recordingId}/part-${partIndex
+      .toString()
+      .padStart(5, '0')}.${extension}`
 
     // Create signed upload URL (expires in 1 hour)
     const { data: urlData, error: urlError } = await supabaseClient.storage

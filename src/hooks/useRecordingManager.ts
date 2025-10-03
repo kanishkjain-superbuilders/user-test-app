@@ -303,15 +303,19 @@ export function useRecordingManager(): RecordingManager {
             const blob = event.data
             totalBytesRef.current += blob.size
 
-            // Add to IndexedDB upload queue
+            // Increment the part index immediately so manifest reflects the
+            // correct totalParts even if uploads are still being queued.
+            const currentPartIndex = partIndexRef.current
+            partIndexRef.current = currentPartIndex + 1
+
+            // Add to IndexedDB upload queue (async)
             try {
               await addToUploadQueue(
                 recordingId,
-                partIndexRef.current,
+                currentPartIndex,
                 blob,
                 mimeType
               )
-              partIndexRef.current++
             } catch (error) {
               console.error('Failed to queue chunk for upload:', error)
               setState((prev) => ({

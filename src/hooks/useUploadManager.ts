@@ -64,7 +64,7 @@ export function useUploadManager(): UploadManager {
     recordingId: string,
     partIndex: number,
     mimeType: string
-  ): Promise<string> => {
+  ): Promise<{ signedUrl: string; path: string; token: string }> => {
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -96,7 +96,7 @@ export function useUploadManager(): UploadManager {
     }
 
     const data = await response.json()
-    return data.signedUrl
+    return { signedUrl: data.signedUrl, path: data.path, token: data.token }
   }
 
   /**
@@ -114,8 +114,8 @@ export function useUploadManager(): UploadManager {
           retries: attempt,
         })
 
-        // Get signed URL
-        const signedUrl = await getSignedUploadUrl(
+        // Get signed URL + token
+        const { path, token } = await getSignedUploadUrl(
           item.recordingId,
           item.partIndex,
           item.mimeType
@@ -125,21 +125,19 @@ export function useUploadManager(): UploadManager {
         const abortController = new AbortController()
         abortControllersRef.current.set(itemId, abortController)
 
-        // Upload the blob
-        const uploadResponse = await fetch(signedUrl, {
-          method: 'PUT',
-          body: item.blob,
-          headers: {
-            'Content-Type': item.mimeType,
-          },
-          signal: abortController.signal,
-        })
+        // Upload the blob using Supabase helper to the signed URL token
+        const { error: uploadError } = await supabase.storage
+          .from('recordings')
+          .uploadToSignedUrl(path, token, item.blob, {
+            upsert: true,
+            contentType: item.mimeType,
+          })
 
         // Remove abort controller
         abortControllersRef.current.delete(itemId)
 
-        if (!uploadResponse.ok) {
-          throw new Error(`Upload failed with status ${uploadResponse.status}`)
+        if (uploadError) {
+          throw new Error(uploadError.message || 'Upload failed')
         }
 
         // Mark as uploaded
@@ -259,9 +257,25 @@ export function useUploadManager(): UploadManager {
    */
   const startUploading = useCallback(
     async (recordingId: string): Promise<void> => {
+      // If an upload loop is already running, wait until it's idle
       if (uploadingRef.current) {
-        console.warn('Upload already in progress')
-        return
+        setIsUploading(true)
+        setError(null)
+        // Wait until no pending or uploading items remain
+        // Poll at a short interval to avoid busy looping
+        // Also surface failures once finished
+        for (;;) {
+          const stats = await getUploadStats(recordingId)
+          const inFlight = stats.pending + stats.uploading
+          if (inFlight === 0) {
+            if (stats.failed > 0) {
+              setError(`${stats.failed} chunks failed to upload`)
+            }
+            setIsUploading(false)
+            return
+          }
+          await sleep(200)
+        }
       }
 
       uploadingRef.current = true

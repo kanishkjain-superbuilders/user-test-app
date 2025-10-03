@@ -16,6 +16,7 @@ import {
   CheckCircle,
 } from 'lucide-react'
 import { useRecordingManager } from '../hooks/useRecordingManager'
+import { useRecordingStore } from '../store/recording'
 import { useUploadManager } from '../hooks/useUploadManager'
 import { isBrowserSupported } from '../lib/recording-utils'
 import { toast } from 'sonner'
@@ -145,22 +146,14 @@ export default function TesterFlow() {
       // Wait for uploads to complete
       await uploadManager.startUploading(recordingId)
 
-      // Get manifest from store
-      const manifest = recordingManager.state
+      // Get generated manifest from recording store (set during stop)
+      const manifest = useRecordingStore.getState().manifest
 
-      // Finalize recording
+      // Finalize recording with accurate manifest
       if (manifest) {
-        await uploadManager.finalizeRecording(recordingId, {
-          recordingId,
-          mimeType: 'video/webm',
-          codecs: 'vp8,opus',
-          totalParts: 0,
-          totalBytes: 0,
-          duration: recordingManager.state.duration,
-          width: 1920,
-          height: 1080,
-          createdAt: new Date().toISOString(),
-        })
+        await uploadManager.finalizeRecording(recordingId, manifest)
+      } else {
+        throw new Error('Manifest not available after recording stop')
       }
 
       setFlowState('complete')
