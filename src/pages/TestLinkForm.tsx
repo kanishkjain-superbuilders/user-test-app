@@ -56,7 +56,8 @@ export default function TestLinkForm() {
       setInstructions(existingLink.instructions_md)
       setRedirectUrl(existingLink.redirect_url || '')
       setVisibility(existingLink.visibility)
-      const opts = (existingLink.record_opts as unknown as RecordOpts) || recordOpts
+      const opts =
+        (existingLink.record_opts as unknown as RecordOpts) || recordOpts
       // Always enforce screen and mic to be true, cam to be false
       setRecordOpts({
         ...opts,

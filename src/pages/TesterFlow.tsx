@@ -6,13 +6,7 @@ import type { PostgrestError } from '@supabase/supabase-js'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import ReactMarkdown from 'react-markdown'
-import {
-  Video,
-  Mic,
-  Play,
-  AlertCircle,
-  CheckCircle,
-} from 'lucide-react'
+import { Video, Mic, Play, AlertCircle, CheckCircle } from 'lucide-react'
 import { useRecordingManager } from '../hooks/useRecordingManager'
 import { useRecordingStore } from '../store/recording'
 import { useUploadManager } from '../hooks/useUploadManager'
