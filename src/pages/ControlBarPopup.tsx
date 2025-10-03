@@ -7,7 +7,6 @@ interface PopupMessage {
   state?: RecordingState
   muteState?: {
     micMuted: boolean
-    camMuted: boolean
   }
   maxDuration?: number
   uploadProgress?: {
@@ -26,7 +25,6 @@ export default function ControlBarPopup() {
   })
   const [muteState, setMuteState] = useState({
     micMuted: false,
-    camMuted: false,
   })
   const [maxDuration, setMaxDuration] = useState<number | undefined>(undefined)
   const [uploadProgress, setUploadProgress] = useState<{
@@ -76,7 +74,6 @@ export default function ControlBarPopup() {
   const handlePause = () => sendMessage('PAUSE')
   const handleResume = () => sendMessage('RESUME')
   const handleToggleMic = () => sendMessage('TOGGLE_MIC')
-  const handleToggleCam = () => sendMessage('TOGGLE_CAM')
 
   return (
     <div className="w-screen h-screen overflow-hidden bg-transparent">
@@ -86,9 +83,7 @@ export default function ControlBarPopup() {
         onPause={handlePause}
         onResume={handleResume}
         onToggleMic={handleToggleMic}
-        onToggleCam={handleToggleCam}
         micMuted={muteState.micMuted}
-        camMuted={muteState.camMuted}
         maxDuration={maxDuration}
         uploadProgress={uploadProgress}
       />

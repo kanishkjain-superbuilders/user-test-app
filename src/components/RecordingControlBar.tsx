@@ -8,8 +8,6 @@ import {
   Play,
   Mic,
   MicOff,
-  Video,
-  VideoOff,
   Minimize2,
   Maximize2,
 } from 'lucide-react'
@@ -22,9 +20,7 @@ interface RecordingControlBarProps {
   onPause: () => void
   onResume: () => void
   onToggleMic: () => void
-  onToggleCam: () => void
   micMuted: boolean
-  camMuted: boolean
   maxDuration?: number // in seconds
   uploadProgress?: {
     uploadedParts: number
@@ -39,9 +35,7 @@ export function RecordingControlBar({
   onPause,
   onResume,
   onToggleMic,
-  onToggleCam,
   micMuted,
-  camMuted,
   maxDuration,
   uploadProgress,
 }: RecordingControlBarProps) {
@@ -231,23 +225,6 @@ export function RecordingControlBar({
                   <MicOff className="h-4 w-4" />
                 ) : (
                   <Mic className="h-4 w-4" />
-                )}
-              </Button>
-
-              {/* Camera toggle */}
-              <Button
-                size="sm"
-                variant={camMuted ? 'destructive' : 'outline'}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onToggleCam()
-                }}
-                disabled={!state.isRecording}
-              >
-                {camMuted ? (
-                  <VideoOff className="h-4 w-4" />
-                ) : (
-                  <Video className="h-4 w-4" />
                 )}
               </Button>
 

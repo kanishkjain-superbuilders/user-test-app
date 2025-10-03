@@ -9,7 +9,6 @@ import ReactMarkdown from 'react-markdown'
 import {
   Video,
   Mic,
-  Camera,
   Play,
   AlertCircle,
   CheckCircle,
@@ -134,9 +133,6 @@ export default function TesterFlow() {
           break
         case 'TOGGLE_MIC':
           recordingManager.toggleMute('mic')
-          break
-        case 'TOGGLE_CAM':
-          recordingManager.toggleMute('cam')
           break
       }
     }
@@ -337,20 +333,6 @@ export default function TesterFlow() {
                     </div>
                   )}
 
-                  {opts.cam && (
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Camera className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium">Camera</p>
-                        <p className="text-sm text-muted-foreground">
-                          We'll capture your video feed
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
                   <div className="pt-4 border-t">
                     <p className="text-sm text-muted-foreground">
                       <strong>Max duration:</strong>{' '}
@@ -372,7 +354,7 @@ export default function TesterFlow() {
                     </p>
                     <p>
                       By clicking "Start Recording", you consent to recording
-                      your screen, audio, and video as specified above.
+                      your screen and audio as specified above.
                     </p>
                   </div>
                 </div>

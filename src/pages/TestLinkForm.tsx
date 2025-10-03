@@ -56,9 +56,14 @@ export default function TestLinkForm() {
       setInstructions(existingLink.instructions_md)
       setRedirectUrl(existingLink.redirect_url || '')
       setVisibility(existingLink.visibility)
-      setRecordOpts(
-        (existingLink.record_opts as unknown as RecordOpts) || recordOpts
-      )
+      const opts = (existingLink.record_opts as unknown as RecordOpts) || recordOpts
+      // Always enforce screen and mic to be true, cam to be false
+      setRecordOpts({
+        ...opts,
+        screen: true,
+        mic: true,
+        cam: false,
+      })
       setActive(existingLink.active)
     }
   }, [isEdit, existingLink, recordOpts])
@@ -215,53 +220,34 @@ export default function TestLinkForm() {
             <div>
               <h2 className="text-lg font-semibold mb-1">Recording Options</h2>
               <p className="text-sm text-muted-foreground">
-                Choose what to capture during the session
+                All sessions will record screen and audio
               </p>
             </div>
 
             <div className="grid gap-4">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 opacity-60">
                 <input
                   type="checkbox"
                   id="screen"
-                  checked={recordOpts.screen}
-                  onChange={(e) =>
-                    setRecordOpts({ ...recordOpts, screen: e.target.checked })
-                  }
+                  checked={true}
+                  disabled
                   className="h-4 w-4 rounded border-gray-300"
                 />
-                <Label htmlFor="screen" className="font-normal cursor-pointer">
-                  Screen Recording (recommended)
+                <Label htmlFor="screen" className="font-normal">
+                  Screen Recording (always enabled)
                 </Label>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 opacity-60">
                 <input
                   type="checkbox"
                   id="mic"
-                  checked={recordOpts.mic}
-                  onChange={(e) =>
-                    setRecordOpts({ ...recordOpts, mic: e.target.checked })
-                  }
+                  checked={true}
+                  disabled
                   className="h-4 w-4 rounded border-gray-300"
                 />
-                <Label htmlFor="mic" className="font-normal cursor-pointer">
-                  Microphone (for think-aloud protocol)
-                </Label>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="cam"
-                  checked={recordOpts.cam}
-                  onChange={(e) =>
-                    setRecordOpts({ ...recordOpts, cam: e.target.checked })
-                  }
-                  className="h-4 w-4 rounded border-gray-300"
-                />
-                <Label htmlFor="cam" className="font-normal cursor-pointer">
-                  Camera (optional)
+                <Label htmlFor="mic" className="font-normal">
+                  Microphone (always enabled)
                 </Label>
               </div>
 
