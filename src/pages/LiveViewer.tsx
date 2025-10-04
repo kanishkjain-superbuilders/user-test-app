@@ -31,6 +31,7 @@ import type { Database } from '../lib/database.types'
 
 type LiveSession = Database['public']['Tables']['live_sessions']['Row']
 type TestLink = Database['public']['Tables']['test_links']['Row']
+type Comment = Database['public']['Tables']['comments']['Row']
 
 // Type override for Supabase query issues
 interface LiveSessionExtended extends Partial<LiveSession> {
@@ -132,6 +133,20 @@ export default function LiveViewer() {
         const typedSession = sessionData as unknown as LiveSessionExtended
         setSession(typedSession)
         setLiveSession(typedSession as LiveSession)
+
+        // Load existing comments for this session
+        const { data: existingComments, error: commentsError } = await supabase
+          .from('comments')
+          .select('*')
+          .eq('live_session_id', sessionId)
+          .order('created_at', { ascending: true })
+
+        if (!commentsError && existingComments) {
+          // Add existing comments to the store
+          existingComments.forEach(comment => {
+            addComment(comment as Comment)
+          })
+        }
 
         // Check viewer limit
         const { data: viewers, error: viewerError } = await supabase
