@@ -56,6 +56,7 @@ interface OrganizationDataState {
   loadOrgLiveSessions: (orgId: string, force?: boolean) => Promise<void>
   loadOrgStats: (orgId: string, force?: boolean) => Promise<void>
   loadAllOrgData: (orgId: string, force?: boolean) => Promise<void>
+  deleteRecording: (recordingId: string) => Promise<boolean>
   clearCache: () => void
 }
 
@@ -289,6 +290,34 @@ export const useOrganizationDataStore = create<OrganizationDataState>(
         get().loadOrgLiveSessions(orgId, force),
         get().loadOrgStats(orgId, force),
       ])
+    },
+
+    deleteRecording: async (recordingId: string) => {
+      try {
+        // Delete recording from database (cascades to storage via trigger)
+        const { error } = await supabase
+          .from('recordings')
+          .delete()
+          .eq('id', recordingId)
+
+        if (error) throw error
+
+        // Remove from local state
+        const state = get()
+        set({
+          recordings: state.recordings.filter((r) => r.id !== recordingId),
+        })
+
+        // Reload stats to update counts
+        if (state.currentOrgId) {
+          get().loadOrgStats(state.currentOrgId, true)
+        }
+
+        return true
+      } catch (error) {
+        console.error('Error deleting recording:', error)
+        return false
+      }
     },
 
     clearCache: () => {

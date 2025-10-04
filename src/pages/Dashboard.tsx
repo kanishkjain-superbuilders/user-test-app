@@ -43,8 +43,10 @@ import {
   Radio,
   FileText,
   Play,
+  Trash2,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { toast } from 'sonner'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -65,6 +67,7 @@ export default function Dashboard() {
     loadingLiveSessions,
     loadAllOrgData,
     loadOrgLiveSessions,
+    deleteRecording,
     clearCache,
   } = useOrganizationDataStore()
 
@@ -75,6 +78,9 @@ export default function Dashboard() {
   const [pendingInvitesCount, setPendingInvitesCount] = useState(0)
   const [activeTab, setActiveTab] = useState('overview')
   const [switchingOrg, setSwitchingOrg] = useState(false)
+  const [deletingRecordingId, setDeletingRecordingId] = useState<string | null>(
+    null
+  )
 
   useEffect(() => {
     if (currentOrg) {
@@ -156,6 +162,23 @@ export default function Dashboard() {
   const handleSignOut = async () => {
     await signOut()
     navigate('/login')
+  }
+
+  const handleDeleteRecording = async (recordingId: string) => {
+    if (!confirm('Are you sure you want to delete this recording? This action cannot be undone.')) {
+      return
+    }
+
+    setDeletingRecordingId(recordingId)
+    const success = await deleteRecording(recordingId)
+
+    if (success) {
+      toast.success('Recording deleted successfully')
+    } else {
+      toast.error('Failed to delete recording')
+    }
+
+    setDeletingRecordingId(null)
   }
 
   // Show loading spinner while auth is initializing
@@ -617,32 +640,57 @@ export default function Dashboard() {
                 {recordings.map((recording, index) => (
                   <Card
                     key={recording.id}
-                    className="cursor-pointer gradient-border hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-2 group overflow-hidden animate-in fade-in-0 slide-in-from-bottom-2"
+                    className="gradient-border hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-2 group overflow-hidden animate-in fade-in-0 slide-in-from-bottom-2"
                     style={{ animationDelay: `${index * 50}ms` }}
-                    onClick={() => navigate(`/app/recordings/${recording.id}`)}
                   >
                     <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/10 to-accent/10 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                     <CardHeader className="relative">
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-base truncate group-hover:text-primary transition-colors">
+                        <CardTitle
+                          className="text-base truncate group-hover:text-primary transition-colors cursor-pointer"
+                          onClick={() =>
+                            navigate(`/app/recordings/${recording.id}`)
+                          }
+                        >
                           {recording.test_links?.title || 'Recording'}
                         </CardTitle>
-                        {recording.status === 'ready' ? (
-                          <div className="p-2 rounded-lg bg-green-500/10">
-                            <Play className="h-4 w-4 text-green-600" />
-                          </div>
-                        ) : (
-                          <div className="p-2 rounded-lg bg-orange-500/10">
-                            <div className="animate-pulse h-4 w-4 rounded-full bg-orange-500" />
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {recording.status === 'ready' ? (
+                            <div className="p-2 rounded-lg bg-green-500/10">
+                              <Play className="h-4 w-4 text-green-600" />
+                            </div>
+                          ) : (
+                            <div className="p-2 rounded-lg bg-orange-500/10">
+                              <div className="animate-pulse h-4 w-4 rounded-full bg-orange-500" />
+                            </div>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteRecording(recording.id)
+                            }}
+                            disabled={deletingRecordingId === recording.id}
+                          >
+                            {deletingRecordingId === recording.id ? (
+                              <div className="animate-spin h-4 w-4 border-2 border-destructive border-t-transparent rounded-full" />
+                            ) : (
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
                       <CardDescription className="text-xs mt-1">
                         {recording.test_links?.projects?.name ||
                           'Unknown Project'}
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="relative">
+                    <CardContent
+                      className="relative cursor-pointer"
+                      onClick={() => navigate(`/app/recordings/${recording.id}`)}
+                    >
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between items-center">
                           <span className="text-muted-foreground">

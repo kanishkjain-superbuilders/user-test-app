@@ -58,6 +58,9 @@ export default function ProjectDetail() {
     }[]
   >([])
   const [loadingLiveSessions, setLoadingLiveSessions] = useState(false)
+  const [deletingRecordingId, setDeletingRecordingId] = useState<string | null>(
+    null
+  )
 
   useEffect(() => {
     const loadProjectData = async () => {
@@ -143,6 +146,36 @@ export default function ProjectDetail() {
     if (confirm('Are you sure you want to delete this test link?')) {
       await deleteTestLink(id)
       toast.success('Test link deleted')
+    }
+  }
+
+  const handleDeleteRecording = async (recordingId: string) => {
+    if (
+      !confirm(
+        'Are you sure you want to delete this recording? This action cannot be undone.'
+      )
+    ) {
+      return
+    }
+
+    setDeletingRecordingId(recordingId)
+
+    try {
+      const { error } = await supabase
+        .from('recordings')
+        .delete()
+        .eq('id', recordingId)
+
+      if (error) throw error
+
+      // Remove from local state
+      setRecordings((prev) => prev.filter((r) => r.id !== recordingId))
+      toast.success('Recording deleted successfully')
+    } catch (error) {
+      console.error('Error deleting recording:', error)
+      toast.error('Failed to delete recording')
+    } finally {
+      setDeletingRecordingId(null)
     }
   }
 
@@ -415,31 +448,53 @@ export default function ProjectDetail() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {recordings.map((recording) => (
-                    <Card
-                      key={recording.id}
-                      className="cursor-pointer hover:bg-accent transition-colors"
-                      onClick={() =>
-                        navigate(`/app/recordings/${recording.id}`)
-                      }
-                    >
+                    <Card key={recording.id} className="group hover:bg-accent/50 transition-colors">
                       <CardHeader>
                         <div className="flex items-start justify-between">
-                          <CardTitle className="text-base flex items-center gap-2">
+                          <CardTitle
+                            className="text-base flex items-center gap-2 cursor-pointer"
+                            onClick={() =>
+                              navigate(`/app/recordings/${recording.id}`)
+                            }
+                          >
                             <Play className="h-4 w-4" />
                             Recording
                           </CardTitle>
-                          <Badge
-                            variant={
-                              recording.status === 'ready'
-                                ? 'default'
-                                : 'secondary'
-                            }
-                          >
-                            {recording.status}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant={
+                                recording.status === 'ready'
+                                  ? 'default'
+                                  : 'secondary'
+                              }
+                            >
+                              {recording.status}
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDeleteRecording(recording.id)
+                              }}
+                              disabled={deletingRecordingId === recording.id}
+                            >
+                              {deletingRecordingId === recording.id ? (
+                                <div className="animate-spin h-4 w-4 border-2 border-destructive border-t-transparent rounded-full" />
+                              ) : (
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              )}
+                            </Button>
+                          </div>
                         </div>
                       </CardHeader>
-                      <CardContent className="space-y-2">
+                      <CardContent
+                        className="space-y-2 cursor-pointer"
+                        onClick={() =>
+                          navigate(`/app/recordings/${recording.id}`)
+                        }
+                      >
                         <div className="text-sm">
                           <span className="text-muted-foreground">
                             Duration:{' '}
