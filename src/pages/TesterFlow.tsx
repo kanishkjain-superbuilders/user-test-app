@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { Database } from '../lib/database.types'
@@ -114,99 +114,24 @@ export default function TesterFlow() {
     }
   }, [recordingId, recordingManager, uploadManager])
 
-  // Store refs to avoid infinite loops from changing dependencies
-  const recordingManagerRef = useRef(recordingManager)
-  recordingManagerRef.current = recordingManager
-
-  const handleStopRecordingRef = useRef(handleStopRecording)
-  handleStopRecordingRef.current = handleStopRecording
-
   // Listen for session-ended event from live channel (remote end recording)
   useEffect(() => {
-    let handleBeforeUnload: (() => void) | null = null
-
     if (flowState === 'recording') {
       // Set up callback for remote session end
       const handleRemoteEnd = () => {
-        // Mark recording manager that session was ended remotely to prevent duplicate RPC call
-        recordingManagerRef.current.markSessionEndedRemotely()
         toast.info('Recording ended by a viewer')
-        handleStopRecordingRef.current()
+        handleStopRecording()
       }
 
       // Register callback with live store
       useLiveStore.getState().setOnSessionEnded(handleRemoteEnd)
-
-      // HYBRID APPROACH: Try to handle clean shutdown on tab close
-      handleBeforeUnload = () => {
-        const { sessionId, testerId } =
-          recordingManagerRef.current.getSessionInfo()
-
-        if (sessionId && recordingId) {
-          console.log('[TesterFlow] Tab closing - attempting clean shutdown')
-          console.log(
-            '[TesterFlow] Session:',
-            sessionId,
-            'Recording:',
-            recordingId
-          )
-
-          // Try to end session and create manifest properly
-          const payload = JSON.stringify({
-            p_session_id: sessionId,
-            p_tester_id: testerId,
-            p_recording_id: recordingId,
-          })
-
-          // Use sendBeacon for best-effort delivery
-          const sent = navigator.sendBeacon(
-            `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/end_test_live_session`,
-            new Blob([payload], { type: 'application/json' })
-          )
-
-          console.log('[TesterFlow] Clean shutdown beacon sent:', sent)
-
-          // Try to upload manifest to blob storage if we have one
-          const manifest = useRecordingStore.getState().manifest
-          if (manifest) {
-            const manifestPayload = new Blob(
-              [
-                JSON.stringify({
-                  recordingId: recordingId,
-                  manifest: manifest,
-                }),
-              ],
-              { type: 'application/json' }
-            )
-
-            // Add authorization header (anon key for anonymous recordings)
-            const formData = new FormData()
-            formData.append('data', manifestPayload)
-
-            const manifestSent = navigator.sendBeacon(
-              `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/finalize-recording`,
-              manifestPayload
-            )
-
-            console.log(
-              '[TesterFlow] Manifest upload beacon sent:',
-              manifestSent
-            )
-          }
-        }
-      }
-
-      window.addEventListener('beforeunload', handleBeforeUnload)
     }
 
     return () => {
-      if (handleBeforeUnload) {
-        window.removeEventListener('beforeunload', handleBeforeUnload)
-      }
       // Clear callback on unmount or when flowState changes
       useLiveStore.getState().setOnSessionEnded(null)
     }
-  }, [flowState, recordingId]) // recordingManager excluded as we use ref
+  }, [flowState, handleStopRecording])
 
   const startRecordingFlow = async () => {
     if (!testLink) return

@@ -34,8 +34,6 @@ export interface RecordingManager {
   resumeRecording: () => void
   toggleMute: (type: 'mic' | 'cam') => void
   getMuteState: () => { micMuted: boolean; camMuted: boolean }
-  markSessionEndedRemotely: () => void
-  getSessionInfo: () => { sessionId: string | null; testerId: string }
 }
 
 export function useRecordingManager(): RecordingManager {
@@ -78,19 +76,12 @@ export function useRecordingManager(): RecordingManager {
   const testerIdRef = useRef<string>(
     `tester-${Math.random().toString(36).substr(2, 9)}`
   )
-  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   /**
    * Cleanup all media streams and resources
    */
 
   const cleanup = useCallback(async () => {
-    // Stop heartbeat
-    if (heartbeatIntervalRef.current) {
-      clearInterval(heartbeatIntervalRef.current)
-      heartbeatIntervalRef.current = null
-    }
-
     // End live session if active
     if (liveSessionRef.current) {
       try {
@@ -351,20 +342,6 @@ export function useRecordingManager(): RecordingManager {
                 testerIdRef.current
               )
 
-              // Start heartbeat to keep session alive (backup for when beforeunload fails)
-              heartbeatIntervalRef.current = setInterval(async () => {
-                try {
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  await (supabase.rpc as any)('update_session_heartbeat', {
-                    p_session_id: sessionId,
-                    p_tester_id: testerIdRef.current,
-                  })
-                  console.log('[Recording] Heartbeat sent')
-                } catch (error) {
-                  console.error('Failed to send heartbeat:', error)
-                }
-              }, 10000) // Send heartbeat every 10 seconds
-
               setState((prev) => ({ ...prev, liveSessionId: sessionId }))
               console.log('Live streaming started for session:', sessionId)
             }
@@ -526,23 +503,6 @@ export function useRecordingManager(): RecordingManager {
     }
   }, [])
 
-  /**
-   * Mark that the session was ended remotely by a viewer
-   */
-  const markSessionEndedRemotely = useCallback(() => {
-    sessionEndedRemotelyRef.current = true
-  }, [])
-
-  /**
-   * Get current session info for beforeunload handler
-   */
-  const getSessionInfo = useCallback(() => {
-    return {
-      sessionId: liveSessionRef.current,
-      testerId: testerIdRef.current,
-    }
-  }, [])
-
   return {
     state,
     startRecording,
@@ -551,7 +511,5 @@ export function useRecordingManager(): RecordingManager {
     resumeRecording,
     toggleMute,
     getMuteState,
-    markSessionEndedRemotely,
-    getSessionInfo,
   }
 }
