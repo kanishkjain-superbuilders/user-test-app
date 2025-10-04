@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -64,6 +64,21 @@ export default function LiveViewer() {
     cleanup,
     addComment,
   } = useLiveStore()
+
+  // Callback ref to ensure stream is set immediately when video element mounts
+  const setVideoRef = useCallback((element: HTMLVideoElement | null) => {
+    videoRef.current = element
+    if (element && remoteStreams.size > 0) {
+      const broadcasterStream = Array.from(remoteStreams.values())[0]
+      if (broadcasterStream) {
+        console.log('[VIEWER] Setting srcObject via callback ref:', {
+          streamId: broadcasterStream.id,
+          trackCount: broadcasterStream.getTracks().length,
+        })
+        element.srcObject = broadcasterStream
+      }
+    }
+  }, [remoteStreams])
 
   // Get user ID on mount - require authentication
   useEffect(() => {
@@ -378,7 +393,7 @@ export default function LiveViewer() {
                 <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
                   {remoteStreams.size > 0 ? (
                     <video
-                      ref={videoRef}
+                      ref={setVideoRef}
                       autoPlay
                       playsInline
                       className="w-full h-full object-contain"
