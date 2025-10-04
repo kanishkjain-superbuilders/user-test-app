@@ -143,7 +143,7 @@ export default function LiveViewer() {
 
         if (!commentsError && existingComments) {
           // Add existing comments to the store
-          existingComments.forEach(comment => {
+          existingComments.forEach((comment) => {
             addComment(comment as Comment)
           })
         }
