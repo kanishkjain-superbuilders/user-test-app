@@ -45,7 +45,7 @@ export function RecordingControlBar({
   // Draggable state - center horizontally accounting for approximate card width
   const [position, setPosition] = useState({
     x: (window.innerWidth - 320) / 2, // Center accounting for card width
-    y: 20
+    y: 20,
   })
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })

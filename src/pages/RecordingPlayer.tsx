@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { ArrowLeft, Download, Loader2 } from 'lucide-react'
+import { ArrowLeft, Loader2 } from 'lucide-react'
 import { formatDuration, formatBytes } from '@/lib/recording-utils'
 import type { RecordingManifest } from '@/lib/recording-utils'
 import type { Database } from '@/lib/database.types'
@@ -119,24 +119,6 @@ export default function RecordingPlayer() {
     }
   }
 
-  const handleDownload = async () => {
-    if (!manifest || !id) return
-
-    try {
-      const { data: session } = await supabase.auth.getSession()
-      if (!session?.session?.access_token) {
-        throw new Error('Not authenticated')
-      }
-
-      // Download all segments and combine (simplified version)
-      // In production, you might want to use a backend service to concatenate
-      alert('Download functionality will be implemented in a future update')
-    } catch (err) {
-      console.error('Error downloading recording:', err)
-      alert('Failed to download recording')
-    }
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-purple-50/30 to-blue-50/30 dark:from-background dark:via-purple-950/10 dark:to-blue-950/10">
@@ -193,22 +175,12 @@ export default function RecordingPlayer() {
                 {new Date(recording.created_at).toLocaleString()}
               </p>
             </div>
-            <div className="flex gap-3">
-              <Badge
-                variant={recording.status === 'ready' ? 'default' : 'secondary'}
-                className="px-4 py-1.5 text-sm font-medium shadow-lg"
-              >
-                {recording.status}
-              </Badge>
-              <Button
-                onClick={handleDownload}
-                variant="outline"
-                className="gradient-border hover:shadow-lg hover:shadow-primary/20 transition-all hover:-translate-y-0.5"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Download
-              </Button>
-            </div>
+            <Badge
+              variant={recording.status === 'ready' ? 'default' : 'secondary'}
+              className="px-4 py-1.5 text-sm font-medium shadow-lg"
+            >
+              {recording.status}
+            </Badge>
           </div>
         </div>
 
