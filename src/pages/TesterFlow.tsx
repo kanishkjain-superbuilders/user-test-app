@@ -123,22 +123,18 @@ export default function TesterFlow() {
 
   // Listen for session-ended event from live channel (remote end recording)
   useEffect(() => {
-    if (flowState !== 'recording') {
-      // Clear callback when not recording
-      useLiveStore.getState().setOnSessionEnded(null)
-      return
-    }
+    if (flowState === 'recording') {
+      // Set up callback for remote session end
+      const handleRemoteEnd = () => {
+        // Mark recording manager that session was ended remotely to prevent duplicate RPC call
+        recordingManagerRef.current.markSessionEndedRemotely()
+        toast.info('Recording ended by a viewer')
+        handleStopRecordingRef.current()
+      }
 
-    // Set up callback for remote session end
-    const handleRemoteEnd = () => {
-      // Mark recording manager that session was ended remotely to prevent duplicate RPC call
-      recordingManagerRef.current.markSessionEndedRemotely()
-      toast.info('Recording ended by a viewer')
-      handleStopRecordingRef.current()
+      // Register callback with live store
+      useLiveStore.getState().setOnSessionEnded(handleRemoteEnd)
     }
-
-    // Register callback with live store
-    useLiveStore.getState().setOnSessionEnded(handleRemoteEnd)
 
     // HYBRID APPROACH: Try to handle clean shutdown on tab close
     const handleBeforeUnload = async () => {
