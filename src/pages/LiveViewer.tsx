@@ -143,6 +143,11 @@ export default function LiveViewer() {
         } as any) // eslint-disable-line @typescript-eslint/no-explicit-any
 
         // Initialize WebRTC channel as viewer
+        console.log('[VIEWER] Attempting to join channel:', {
+          sessionId: typedSession.id,
+          channelName: typedSession.channel_name,
+          viewerId: userId,
+        })
         await initChannel(typedSession.channel_name || '', 'viewer', userId)
 
         toast.success('Joined live session!')

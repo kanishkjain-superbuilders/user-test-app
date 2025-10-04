@@ -715,7 +715,7 @@ export default function Dashboard() {
                     key={session.id}
                     className="cursor-pointer hover:border-primary hover:shadow-lg transition-all border-green-500"
                     onClick={() =>
-                      navigate(`/app/live/${session.channel_name}`)
+                      navigate(`/app/live/${session.id}`)
                     }
                   >
                     <CardHeader>
@@ -750,7 +750,7 @@ export default function Dashboard() {
                         <Button
                           onClick={(e) => {
                             e.stopPropagation()
-                            navigate(`/app/live/${session.channel_name}`)
+                            navigate(`/app/live/${session.id}`)
                           }}
                           className="w-full mt-2"
                           size="sm"
