@@ -77,12 +77,43 @@ export default function RecordingPlayer() {
       )
 
       if (!signedUrlResponse.ok) {
-        // If manifest is missing, try recovery
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const status = (recordingData as any)?.status
-        if (status === 'needs_recovery' || status === 'processing') {
+        // If manifest is missing, check if we should attempt recovery
+        console.log('[RecordingPlayer] Manifest not found, checking if recovery needed...')
+
+        // Check for any live session for this recording
+        const { data: liveSession } = await supabase
+          .from('live_sessions')
+          .select('id, status, last_heartbeat, created_at')
+          .eq('recording_id', id!)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
+
+        // Only attempt recovery if:
+        // 1. No live session exists OR
+        // 2. Live session is ended OR
+        // 3. Live session is active but stale (no heartbeat for 30+ seconds)
+        let shouldRecover = false
+
+        if (!liveSession) {
+          console.log('[RecordingPlayer] No live session found, will attempt recovery')
+          shouldRecover = true
+        } else if (liveSession.status === 'ended') {
+          console.log('[RecordingPlayer] Live session ended, will attempt recovery')
+          shouldRecover = true
+        } else if (liveSession.status === 'active' && liveSession.last_heartbeat) {
+          const heartbeatAge = Date.now() - new Date(liveSession.last_heartbeat).getTime()
+          if (heartbeatAge > 30000) {
+            console.log(`[RecordingPlayer] Live session stale (${heartbeatAge}ms since heartbeat), will attempt recovery`)
+            shouldRecover = true
+          } else {
+            console.log(`[RecordingPlayer] Live session still active (${heartbeatAge}ms since heartbeat), no recovery needed`)
+          }
+        }
+
+        if (shouldRecover) {
           console.log(
-            '[RecordingPlayer] Recording needs recovery, attempting to create manifest...'
+            '[RecordingPlayer] Attempting to create recovery manifest...'
           )
 
           // Call recovery Edge Function
@@ -98,6 +129,7 @@ export default function RecordingPlayer() {
               },
               body: JSON.stringify({
                 recordingId: id,
+                sessionId: liveSession?.id,
               }),
             }
           )
