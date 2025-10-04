@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
 import {
@@ -39,43 +39,39 @@ export function RecordingControlBar({
   maxDuration,
   uploadProgress,
 }: RecordingControlBarProps) {
-  // Load saved state from localStorage
-  const [isMinimized, setIsMinimized] = useState(() => {
-    const saved = localStorage.getItem('recordingControlBar.minimized')
-    return saved ? JSON.parse(saved) : false
-  })
-  const [position, setPosition] = useState(() => {
-    const saved = localStorage.getItem('recordingControlBar.position')
-    return saved ? JSON.parse(saved) : { x: 20, y: 20 }
+  // Simple minimized state for embedded context
+  const [isMinimized, setIsMinimized] = useState(false)
+
+  // Draggable state - center horizontally accounting for approximate card width
+  const [position, setPosition] = useState({
+    x: (window.innerWidth - 320) / 2, // Center accounting for card width
+    y: 20
   })
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
-
-  // Save minimized state to localStorage
-  useEffect(() => {
-    localStorage.setItem(
-      'recordingControlBar.minimized',
-      JSON.stringify(isMinimized)
-    )
-  }, [isMinimized])
-
-  // Save position to localStorage
-  useEffect(() => {
-    localStorage.setItem(
-      'recordingControlBar.position',
-      JSON.stringify(position)
-    )
-  }, [position])
 
   // Handle dragging
   useEffect(() => {
     if (!isDragging) return
 
     const handleMouseMove = (e: MouseEvent) => {
-      setPosition({
-        x: e.clientX - dragOffset.x,
-        y: e.clientY - dragOffset.y,
-      })
+      const newX = e.clientX - dragOffset.x
+      const newY = e.clientY - dragOffset.y
+
+      // Keep the control bar within viewport bounds
+      const cardWidth = isMinimized ? 200 : 320 // Approximate widths
+      const cardHeight = isMinimized ? 60 : 300 // Approximate heights
+
+      const boundedX = Math.max(
+        0,
+        Math.min(window.innerWidth - cardWidth, newX)
+      )
+      const boundedY = Math.max(
+        0,
+        Math.min(window.innerHeight - cardHeight, newY)
+      )
+
+      setPosition({ x: boundedX, y: boundedY })
     }
 
     const handleMouseUp = () => {
@@ -89,14 +85,16 @@ export function RecordingControlBar({
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [isDragging, dragOffset])
+  }, [isDragging, dragOffset, isMinimized])
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true)
+    // Get the card element's bounding rect
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
     setDragOffset({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y,
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
     })
+    setIsDragging(true)
   }
 
   const remainingTime = maxDuration ? maxDuration - state.duration : 0
@@ -104,15 +102,18 @@ export function RecordingControlBar({
 
   return (
     <div
-      className="fixed z-50 shadow-2xl"
+      className="fixed z-50"
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
-        cursor: isDragging ? 'grabbing' : 'grab',
+        transform: 'none', // Remove the transform since we're using absolute positioning
       }}
-      onMouseDown={handleMouseDown}
     >
-      <Card className="bg-background/95 backdrop-blur-sm border-2 border-primary/20">
+      <Card
+        className="bg-background/95 backdrop-blur-sm border-2 border-primary/20 shadow-2xl"
+        onMouseDown={handleMouseDown}
+        style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+      >
         {isMinimized ? (
           // Minimized view
           <div className="p-3 flex items-center gap-3">
@@ -135,6 +136,7 @@ export function RecordingControlBar({
                 e.stopPropagation()
                 setIsMinimized(false)
               }}
+              onMouseDown={(e) => e.stopPropagation()}
             >
               <Maximize2 className="h-4 w-4" />
             </Button>
@@ -166,6 +168,7 @@ export function RecordingControlBar({
                   e.stopPropagation()
                   setIsMinimized(true)
                 }}
+                onMouseDown={(e) => e.stopPropagation()}
               >
                 <Minimize2 className="h-4 w-4" />
               </Button>
@@ -219,6 +222,7 @@ export function RecordingControlBar({
                   e.stopPropagation()
                   onToggleMic()
                 }}
+                onMouseDown={(e) => e.stopPropagation()}
                 disabled={!state.isRecording}
               >
                 {micMuted ? (
@@ -237,6 +241,7 @@ export function RecordingControlBar({
                     e.stopPropagation()
                     onPause()
                   }}
+                  onMouseDown={(e) => e.stopPropagation()}
                 >
                   <Pause className="h-4 w-4" />
                   <span className="ml-1.5">Pause</span>
@@ -251,6 +256,7 @@ export function RecordingControlBar({
                     e.stopPropagation()
                     onResume()
                   }}
+                  onMouseDown={(e) => e.stopPropagation()}
                 >
                   <Play className="h-4 w-4" />
                   <span className="ml-1.5">Resume</span>
@@ -265,6 +271,7 @@ export function RecordingControlBar({
                   e.stopPropagation()
                   onStop()
                 }}
+                onMouseDown={(e) => e.stopPropagation()}
                 disabled={!state.isRecording && !state.isPaused}
               >
                 <Square className="h-4 w-4" />

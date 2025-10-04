@@ -13,6 +13,7 @@ import { useUploadManager } from '../hooks/useUploadManager'
 import { useLiveStore } from '../store/live'
 import { isBrowserSupported } from '../lib/recording-utils'
 import { toast } from 'sonner'
+import { RecordingControlBar } from '../components/RecordingControlBar'
 
 type TestLink = Database['public']['Tables']['test_links']['Row']
 
@@ -37,7 +38,6 @@ export default function TesterFlow() {
   const [flowState, setFlowState] = useState<FlowState>('loading')
   const [error, setError] = useState<string | null>(null)
   const [recordingId, setRecordingId] = useState<string | null>(null)
-  const [controlBarWindow, setControlBarWindow] = useState<Window | null>(null)
 
   // Recording hooks
   const recordingManager = useRecordingManager()
@@ -77,73 +77,6 @@ export default function TesterFlow() {
   useEffect(() => {
     loadTestLink()
   }, [loadTestLink])
-
-  // Send state updates to control bar popup
-  useEffect(() => {
-    if (!controlBarWindow || controlBarWindow.closed) return
-
-    const interval = setInterval(() => {
-      try {
-        const muteState = recordingManager.getMuteState()
-        controlBarWindow.postMessage(
-          {
-            type: 'STATE_UPDATE',
-            state: recordingManager.state,
-            maxDuration: testLink?.record_opts
-              ? (testLink.record_opts as unknown as RecordOpts).maxDurationSec
-              : undefined,
-            uploadProgress: uploadManager.progress,
-          },
-          '*'
-        )
-        controlBarWindow.postMessage(
-          {
-            type: 'MUTE_STATE_UPDATE',
-            muteState,
-          },
-          '*'
-        )
-      } catch (err) {
-        console.error('Failed to send message to popup:', err)
-      }
-    }, 100) // Update 10 times per second
-
-    return () => clearInterval(interval)
-  }, [controlBarWindow, recordingManager, uploadManager, testLink])
-
-  // Listen for messages from control bar popup
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data.source !== 'controlBar') return
-
-      switch (event.data.type) {
-        case 'STOP':
-          handleStopRecording()
-          break
-        case 'PAUSE':
-          recordingManager.pauseRecording()
-          break
-        case 'RESUME':
-          recordingManager.resumeRecording()
-          break
-        case 'TOGGLE_MIC':
-          recordingManager.toggleMute('mic')
-          break
-      }
-    }
-
-    window.addEventListener('message', handleMessage)
-    return () => window.removeEventListener('message', handleMessage)
-  }, [recordingManager])
-
-  // Close popup when component unmounts
-  useEffect(() => {
-    return () => {
-      if (controlBarWindow && !controlBarWindow.closed) {
-        controlBarWindow.close()
-      }
-    }
-  }, [controlBarWindow])
 
   const handleStopRecording = useCallback(async () => {
     if (!recordingId) return
@@ -250,16 +183,6 @@ export default function TesterFlow() {
 
       // Start uploading chunks in background
       uploadManager.startUploading(recordingId)
-
-      // Open control bar in a small popup window
-      const popupUrl = `${window.location.origin}/control-bar-popup`
-      const popupFeatures =
-        'width=400,height=250,left=20,top=20,resizable=yes,scrollbars=no,menubar=no,toolbar=no,location=no,status=no'
-      const popup = window.open(popupUrl, 'RecordingControlBar', popupFeatures)
-
-      if (popup) {
-        setControlBarWindow(popup)
-      }
 
       // If there's a redirect URL, open it
       if (testLink.redirect_url) {
@@ -403,31 +326,46 @@ export default function TesterFlow() {
 
         {/* Recording View */}
         {flowState === 'recording' && (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <div className="mb-4">
-                <div className="h-16 w-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
-                  <div className="h-8 w-8 rounded-full bg-red-500 animate-pulse" />
-                </div>
-                <h2 className="text-2xl font-bold mb-2">
-                  Recording in Progress
-                </h2>
-                <p className="text-muted-foreground mb-4">
-                  Your session is being recorded. Use the floating control bar
-                  window to pause or stop.
-                </p>
-                {testLink.redirect_url && (
-                  <p className="text-sm text-muted-foreground">
-                    A new tab has been opened with the test environment.
+          <>
+            {/* Embedded Recording Control Bar - now draggable */}
+            <RecordingControlBar
+              state={recordingManager.state}
+              onStop={handleStopRecording}
+              onPause={() => recordingManager.pauseRecording()}
+              onResume={() => recordingManager.resumeRecording()}
+              onToggleMic={() => recordingManager.toggleMute('mic')}
+              micMuted={recordingManager.getMuteState().micMuted}
+              maxDuration={
+                testLink?.record_opts
+                  ? (testLink.record_opts as unknown as RecordOpts)
+                      .maxDurationSec
+                  : undefined
+              }
+              uploadProgress={uploadManager.progress}
+            />
+
+            <Card>
+              <CardContent className="py-12 text-center">
+                <div className="mb-4">
+                  <div className="h-16 w-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+                    <div className="h-8 w-8 rounded-full bg-red-500 animate-pulse" />
+                  </div>
+                  <h2 className="text-2xl font-bold mb-2">
+                    Recording in Progress
+                  </h2>
+                  <p className="text-muted-foreground mb-4">
+                    Your session is being recorded. Use the control bar above to
+                    pause or stop.
                   </p>
-                )}
-                <p className="text-sm text-muted-foreground mt-4">
-                  The control bar is in a separate popup window that will stay
-                  visible across all tabs.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+                  {testLink.redirect_url && (
+                    <p className="text-sm text-muted-foreground">
+                      A new tab has been opened with the test environment.
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </>
         )}
 
         {/* Uploading View */}

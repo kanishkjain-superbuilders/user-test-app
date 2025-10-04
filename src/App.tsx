@@ -13,7 +13,6 @@ import LiveViewer from './pages/LiveViewer'
 import TesterFlow from './pages/TesterFlow'
 import OrganizationSettings from './pages/OrganizationSettings'
 import InviteMembers from './pages/InviteMembers'
-import ControlBarPopup from './pages/ControlBarPopup'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuthStore()
@@ -40,7 +39,6 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/accept-invite" element={<AcceptInvite />} />
         <Route path="/t/:slug" element={<TesterFlow />} />
-        <Route path="/control-bar-popup" element={<ControlBarPopup />} />
 
         {/* Private routes */}
         <Route
