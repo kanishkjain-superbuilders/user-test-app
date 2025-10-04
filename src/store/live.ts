@@ -261,9 +261,19 @@ export const useLiveStore = create<LiveState>((set, get) => ({
 
     // Add local stream tracks
     if (localStream) {
-      localStream.getTracks().forEach((track) => {
+      const tracks = localStream.getTracks()
+      if (isBroadcaster) {
+        console.log('[BROADCASTER] Adding tracks to peer connection:', {
+          peerId,
+          trackCount: tracks.length,
+          trackTypes: tracks.map(t => t.kind),
+        })
+      }
+      tracks.forEach((track) => {
         pc.addTrack(track, localStream)
       })
+    } else if (isBroadcaster) {
+      console.warn('[BROADCASTER] No local stream available when creating peer connection for', peerId)
     }
 
     // Initialize connection state flags for Perfect Negotiation

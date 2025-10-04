@@ -327,13 +327,15 @@ export function useRecordingManager(): RecordingManager {
             } else {
               liveSessionRef.current = sessionId
 
+              // Set local stream BEFORE initializing channel so it's available when viewers join
+              liveStore.setLocalStream(combinedStream)
+
               // Initialize WebRTC broadcasting
               await liveStore.initChannel(
                 channelName,
                 'broadcaster',
                 testerIdRef.current
               )
-              liveStore.setLocalStream(combinedStream)
 
               setState((prev) => ({ ...prev, liveSessionId: sessionId }))
               console.log('[BROADCASTER] Live streaming initialized:', {
