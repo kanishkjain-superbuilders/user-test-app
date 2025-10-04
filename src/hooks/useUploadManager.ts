@@ -117,7 +117,9 @@ export function useUploadManager(): UploadManager {
     async (item: UploadQueueItem): Promise<void> => {
       const itemId = item.id
       let attempt = 0
-      console.log(`[Upload] Starting upload for chunk ${item.partIndex}, size: ${item.blob.size} bytes`)
+      console.log(
+        `[Upload] Starting upload for chunk ${item.partIndex}, size: ${item.blob.size} bytes`
+      )
 
       while (attempt <= MAX_RETRIES) {
         // Check network status before attempting
@@ -140,7 +142,9 @@ export function useUploadManager(): UploadManager {
             item.partIndex,
             item.mimeType
           )
-          console.log(`[Upload] Got signed URL for chunk ${item.partIndex}, path: ${path}`)
+          console.log(
+            `[Upload] Got signed URL for chunk ${item.partIndex}, path: ${path}`
+          )
 
           // Create abort controller for this upload
           const abortController = new AbortController()
@@ -276,7 +280,9 @@ export function useUploadManager(): UploadManager {
         try {
           // Get pending uploads (including failed ones for retry)
           const pending = await getPendingUploads(recordingId)
-          console.log(`[Upload] Found ${pending.length} pending chunks to upload`)
+          console.log(
+            `[Upload] Found ${pending.length} pending chunks to upload`
+          )
 
           if (pending.length === 0) {
             // No chunks to upload yet, wait and check again
