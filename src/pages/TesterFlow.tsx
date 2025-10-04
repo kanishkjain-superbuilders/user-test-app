@@ -141,7 +141,7 @@ export default function TesterFlow() {
     useLiveStore.getState().setOnSessionEnded(handleRemoteEnd)
 
     // HYBRID APPROACH: Try to handle clean shutdown on tab close
-    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
+    const handleBeforeUnload = async () => {
       const { sessionId, testerId } = recordingManager.getSessionInfo()
 
       if (sessionId && recordingId) {
@@ -215,7 +215,9 @@ export default function TesterFlow() {
 
       // Start uploading chunks immediately (before recording starts)
       // This ensures chunks are uploaded as they're created
-      console.log(`[TesterFlow] Starting upload manager for recording ${recordingId}`)
+      console.log(
+        `[TesterFlow] Starting upload manager for recording ${recordingId}`
+      )
       uploadManager.startUploading(recordingId) // Don't await - let it run in background
 
       // Start recording with live streaming enabled
