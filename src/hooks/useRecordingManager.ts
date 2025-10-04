@@ -34,6 +34,7 @@ export interface RecordingManager {
   resumeRecording: () => void
   toggleMute: (type: 'mic' | 'cam') => void
   getMuteState: () => { micMuted: boolean; camMuted: boolean }
+  markSessionEndedRemotely: () => void
 }
 
 export function useRecordingManager(): RecordingManager {
@@ -72,6 +73,7 @@ export function useRecordingManager(): RecordingManager {
   const { setManifest } = useRecordingStore()
   const liveStore = useLiveStore()
   const liveSessionRef = useRef<string | null>(null)
+  const sessionEndedRemotelyRef = useRef<boolean>(false)
   const testerIdRef = useRef<string>(
     `tester-${Math.random().toString(36).substr(2, 9)}`
   )
@@ -84,13 +86,17 @@ export function useRecordingManager(): RecordingManager {
     // End live session if active
     if (liveSessionRef.current) {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase.rpc as any)('end_test_live_session', {
-          p_session_id: liveSessionRef.current,
-          p_tester_id: testerIdRef.current,
-        })
+        // Only call RPC if session wasn't ended remotely by a viewer
+        if (!sessionEndedRemotelyRef.current) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase.rpc as any)('end_test_live_session', {
+            p_session_id: liveSessionRef.current,
+            p_tester_id: testerIdRef.current,
+          })
+        }
         liveStore.cleanup()
         liveSessionRef.current = null
+        sessionEndedRemotelyRef.current = false // Reset for next recording
       } catch (error) {
         console.error('Failed to end live session:', error)
       }
@@ -492,6 +498,13 @@ export function useRecordingManager(): RecordingManager {
     }
   }, [])
 
+  /**
+   * Mark that the session was ended remotely by a viewer
+   */
+  const markSessionEndedRemotely = useCallback(() => {
+    sessionEndedRemotelyRef.current = true
+  }, [])
+
   return {
     state,
     startRecording,
@@ -500,5 +513,6 @@ export function useRecordingManager(): RecordingManager {
     resumeRecording,
     toggleMute,
     getMuteState,
+    markSessionEndedRemotely,
   }
 }

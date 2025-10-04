@@ -184,23 +184,22 @@ export default function TesterFlow() {
   useEffect(() => {
     if (flowState !== 'recording') return
 
-    const liveChannel = useLiveStore.getState().channel
-    if (!liveChannel) return
-
-    const handleSessionEnded = () => {
-      toast.info('Recording ended remotely by a viewer')
+    // Set up callback for remote session end
+    const handleRemoteEnd = () => {
+      // Mark recording manager that session was ended remotely to prevent duplicate RPC call
+      recordingManager.markSessionEndedRemotely()
+      toast.info('Recording ended by a viewer')
       handleStopRecording()
     }
 
-    // Subscribe to session-ended events
-    liveChannel.on('broadcast', { event: 'session-ended' }, handleSessionEnded)
+    // Register callback with live store
+    useLiveStore.getState().setOnSessionEnded(handleRemoteEnd)
 
-    // Cleanup: Since we can't unsubscribe individual events easily,
-    // we rely on the channel cleanup in the live store when session ends
     return () => {
-      // Event handlers are automatically removed when channel is cleaned up
+      // Clear callback on unmount
+      useLiveStore.getState().setOnSessionEnded(null)
     }
-  }, [flowState, handleStopRecording])
+  }, [flowState, handleStopRecording, recordingManager])
 
   const startRecordingFlow = async () => {
     if (!testLink) return

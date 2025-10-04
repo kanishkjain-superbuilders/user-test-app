@@ -43,6 +43,7 @@ interface LiveState {
   viewerCount: number
   isBroadcaster: boolean
   connectionState: 'disconnected' | 'connecting' | 'connected' | 'failed'
+  onSessionEnded: (() => void) | null
 
   // Actions
   setLiveSession: (session: LiveSession | null) => void
@@ -67,6 +68,7 @@ interface LiveState {
   setConnectionState: (
     state: 'disconnected' | 'connecting' | 'connected' | 'failed'
   ) => void
+  setOnSessionEnded: (callback: (() => void) | null) => void
 }
 
 // ICE servers configuration
@@ -89,6 +91,7 @@ export const useLiveStore = create<LiveState>((set, get) => ({
   viewerCount: 0,
   isBroadcaster: false,
   connectionState: 'disconnected',
+  onSessionEnded: null,
 
   setLiveSession: (session) => set({ liveSession: session }),
 
@@ -176,9 +179,15 @@ export const useLiveStore = create<LiveState>((set, get) => ({
         set((state) => ({ comments: [...state.comments, payload as Comment] }))
       })
       .on('broadcast', { event: 'session-ended' }, () => {
-        // Handle session end
-        get().cleanup()
-        set({ connectionState: 'disconnected' })
+        // Call registered callback for session end (e.g., from TesterFlow)
+        const { onSessionEnded } = get()
+        if (onSessionEnded) {
+          onSessionEnded()
+        } else {
+          // Fallback: just cleanup if no callback registered (e.g., for viewers)
+          get().cleanup()
+          set({ connectionState: 'disconnected' })
+        }
       })
 
     await channel.subscribe()
@@ -470,4 +479,6 @@ export const useLiveStore = create<LiveState>((set, get) => ({
   },
 
   setConnectionState: (state) => set({ connectionState: state }),
+
+  setOnSessionEnded: (callback) => set({ onSessionEnded: callback }),
 }))
