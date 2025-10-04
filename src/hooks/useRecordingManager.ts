@@ -336,7 +336,11 @@ export function useRecordingManager(): RecordingManager {
               liveStore.setLocalStream(combinedStream)
 
               setState((prev) => ({ ...prev, liveSessionId: sessionId }))
-              console.log('Live streaming started for session:', sessionId)
+              console.log('[BROADCASTER] Live streaming initialized:', {
+                sessionId,
+                channelName,
+                testerId: testerIdRef.current,
+              })
             }
           } catch (error) {
             console.error('Failed to start live streaming:', error)

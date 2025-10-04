@@ -128,6 +128,16 @@ export const useLiveStore = create<LiveState>((set, get) => ({
           }
         })
 
+        const { isBroadcaster } = get()
+        if (isBroadcaster) {
+          console.log('[BROADCASTER] Presence sync:', {
+            totalPresence: Object.keys(presenceMap).length,
+            viewerCount,
+            presenceKeys: Object.keys(presenceMap),
+            presenceDetails: presenceMap,
+          })
+        }
+
         set({ presence: presenceMap, viewerCount })
       })
       .on('presence', { event: 'join' }, ({ key, newPresences }) => {
