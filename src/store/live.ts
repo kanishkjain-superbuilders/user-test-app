@@ -37,6 +37,7 @@ interface LiveState {
   presence: Record<string, PresenceState>
   peerConnections: Map<string, PeerConnection>
   userIdToPresenceKey: Map<string, string> // Map userId to presence key for signal routing
+  myPresenceKey: string | null // Our own presence key for signal routing
   localStream: MediaStream | null
   remoteStreams: Map<string, MediaStream>
   comments: Comment[]
@@ -85,6 +86,7 @@ export const useLiveStore = create<LiveState>((set, get) => ({
   presence: {},
   peerConnections: new Map(),
   userIdToPresenceKey: new Map(),
+  myPresenceKey: null,
   localStream: null,
   remoteStreams: new Map(),
   comments: [],
@@ -201,7 +203,8 @@ export const useLiveStore = create<LiveState>((set, get) => ({
       joinedAt: new Date().toISOString(),
     } as PresenceState)
 
-    set({ channel, connectionState: 'connected' })
+    // Store our presence key (which is userId in this case)
+    set({ channel, connectionState: 'connected', myPresenceKey: userId })
   },
 
   cleanup: () => {
@@ -232,6 +235,7 @@ export const useLiveStore = create<LiveState>((set, get) => ({
       channel: null,
       peerConnections: new Map(),
       userIdToPresenceKey: new Map(),
+      myPresenceKey: null,
       localStream: null,
       remoteStreams: new Map(),
       presence: {},
@@ -242,7 +246,7 @@ export const useLiveStore = create<LiveState>((set, get) => ({
   },
 
   createPeerConnection: (peerId, role, userId) => {
-    const { peerConnections, localStream, isBroadcaster } = get()
+    const { peerConnections, localStream, isBroadcaster, myPresenceKey } = get()
 
     // Check if connection already exists
     const existing = peerConnections.get(peerId)
@@ -285,7 +289,7 @@ export const useLiveStore = create<LiveState>((set, get) => ({
         await pc.setLocalDescription()
         get().sendSignal({
           type: 'offer',
-          from: isBroadcaster ? 'broadcaster' : userId,
+          from: isBroadcaster ? 'broadcaster' : myPresenceKey || userId,
           to: isBroadcaster ? peerId : 'broadcaster',
           data: pc.localDescription!,
         })
@@ -302,7 +306,7 @@ export const useLiveStore = create<LiveState>((set, get) => ({
       if (event.candidate) {
         get().sendSignal({
           type: 'ice-candidate',
-          from: isBroadcaster ? 'broadcaster' : userId,
+          from: isBroadcaster ? 'broadcaster' : myPresenceKey || userId,
           to: isBroadcaster ? peerId : 'broadcaster',
           data: event.candidate.toJSON(),
         })
@@ -320,10 +324,8 @@ export const useLiveStore = create<LiveState>((set, get) => ({
     // Handle connection state changes
     pc.onconnectionstatechange = () => {
       console.log(`Peer connection state (${peerId}):`, pc.connectionState)
-      if (
-        pc.connectionState === 'failed' ||
-        pc.connectionState === 'disconnected'
-      ) {
+      if (pc.connectionState === 'failed') {
+        // Only remove on failed, not disconnected (which can recover)
         get().removePeerConnection(peerId)
         get().removeRemoteStream(peerId)
       }
@@ -381,28 +383,33 @@ export const useLiveStore = create<LiveState>((set, get) => ({
   handleSignal: async (signal) => {
     const { peerConnections, isBroadcaster, userIdToPresenceKey } = get()
 
-    // Determine our ID
-    const myId = isBroadcaster ? 'broadcaster' : signal.to
-
     // Ignore signals not meant for us
-    if (signal.to !== myId) return
-
-    // Find peer connection - first try signal.from directly, then map userId to presence key
-    let conn = peerConnections.get(signal.from)
-
-    // If not found and we're broadcaster, try mapping userId to presence key
-    if (!conn && isBroadcaster) {
-      const presenceKey = userIdToPresenceKey.get(signal.from)
-      if (presenceKey) {
-        conn = peerConnections.get(presenceKey)
-      }
+    if (isBroadcaster) {
+      if (signal.to !== 'broadcaster') return
+    } else {
+      // Viewers should accept signals addressed to them (by presence key or userId)
+      if (signal.to !== 'broadcaster') return // Viewers only process signals from broadcaster
     }
 
-    // Create peer connection if it doesn't exist (viewer receiving offer from broadcaster)
-    if (!conn && signal.type === 'offer') {
-      get().createPeerConnection('broadcaster', 'broadcaster', myId)
-      conn = get().peerConnections.get('broadcaster')
-      if (!conn) return
+    // Find the peer connection
+    let peerId: string
+    let conn: PeerConnection | undefined
+
+    if (isBroadcaster) {
+      // Broadcaster: find connection by presence key
+      // signal.from could be userId, so map it to presence key
+      peerId = userIdToPresenceKey.get(signal.from) || signal.from
+      conn = peerConnections.get(peerId)
+    } else {
+      // Viewer: connection is always with 'broadcaster'
+      peerId = 'broadcaster'
+      conn = peerConnections.get(peerId)
+
+      // Create peer connection if it doesn't exist (viewer receiving offer from broadcaster)
+      if (!conn && signal.type === 'offer') {
+        get().createPeerConnection('broadcaster', 'broadcaster', signal.to)
+        conn = get().peerConnections.get('broadcaster')
+      }
     }
 
     if (!conn) {
@@ -442,9 +449,10 @@ export const useLiveStore = create<LiveState>((set, get) => ({
         // Create and send answer
         const answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)
+        const { myPresenceKey: currentPresenceKey } = get()
         get().sendSignal({
           type: 'answer',
-          from: myId,
+          from: isBroadcaster ? 'broadcaster' : currentPresenceKey || signal.to,
           to: signal.from,
           data: answer,
         })
