@@ -448,7 +448,10 @@ export default function ProjectDetail() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {recordings.map((recording) => (
-                    <Card key={recording.id} className="group hover:bg-accent/50 transition-colors">
+                    <Card
+                      key={recording.id}
+                      className="group hover:bg-accent/50 transition-colors"
+                    >
                       <CardHeader>
                         <div className="flex items-start justify-between">
                           <CardTitle

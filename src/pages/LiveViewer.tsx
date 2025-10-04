@@ -212,13 +212,21 @@ export default function LiveViewer() {
     setSendingComment(true)
 
     try {
+      // Calculate timestamp_ms if session has started_at
+      let timestamp_ms = null
+      if (session.started_at) {
+        const sessionStart = new Date(session.started_at).getTime()
+        const now = new Date().getTime()
+        timestamp_ms = now - sessionStart
+      }
+
       const comment = {
         id: crypto.randomUUID(),
         recording_id: null,
         live_session_id: session.id || '',
         user_id: userId, // Should always be a valid user ID since we require authentication
         author_name: `User ${userId.slice(0, 8)}`,
-        timestamp_ms: null,
+        timestamp_ms: timestamp_ms,
         body: commentText,
         kind: 'comment' as const,
         created_at: new Date().toISOString(),

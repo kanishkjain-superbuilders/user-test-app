@@ -165,7 +165,11 @@ export default function Dashboard() {
   }
 
   const handleDeleteRecording = async (recordingId: string) => {
-    if (!confirm('Are you sure you want to delete this recording? This action cannot be undone.')) {
+    if (
+      !confirm(
+        'Are you sure you want to delete this recording? This action cannot be undone.'
+      )
+    ) {
       return
     }
 
@@ -689,7 +693,9 @@ export default function Dashboard() {
                     </CardHeader>
                     <CardContent
                       className="relative cursor-pointer"
-                      onClick={() => navigate(`/app/recordings/${recording.id}`)}
+                      onClick={() =>
+                        navigate(`/app/recordings/${recording.id}`)
+                      }
                     >
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between items-center">

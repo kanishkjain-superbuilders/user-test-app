@@ -12,12 +12,14 @@ import type { RecordingManifest } from '@/lib/recording-utils'
 import type { Database } from '@/lib/database.types'
 
 type Recording = Database['public']['Tables']['recordings']['Row']
+type Comment = Database['public']['Tables']['comments']['Row']
 
 export default function RecordingPlayer() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [recording, setRecording] = useState<Recording | null>(null)
   const [manifest, setManifest] = useState<RecordingManifest | null>(null)
+  const [comments, setComments] = useState<Comment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -29,6 +31,7 @@ export default function RecordingPlayer() {
     }
 
     loadRecording()
+    loadComments()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
@@ -92,6 +95,27 @@ export default function RecordingPlayer() {
       setError(err instanceof Error ? err.message : 'Failed to load recording')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadComments = async () => {
+    if (!id) return
+
+    try {
+      const { data: commentsData, error: commentsError } = await supabase
+        .from('comments')
+        .select('*')
+        .eq('recording_id', id)
+        .order('timestamp_ms', { ascending: true })
+
+      if (commentsError) {
+        console.error('Error loading comments:', commentsError)
+        return
+      }
+
+      setComments(commentsData || [])
+    } catch (err) {
+      console.error('Error loading comments:', err)
     }
   }
 
@@ -255,23 +279,51 @@ export default function RecordingPlayer() {
               </CardContent>
             </Card>
 
-            {/* Comments Placeholder */}
+            {/* Comments Section */}
             <Card className="gradient-border hover:shadow-xl hover:shadow-primary/10 transition-all duration-300">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <span className="w-1 h-6 bg-gradient-to-b from-primary to-accent rounded-full" />
-                  Comments
+                  Comments ({comments.length})
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                    <span className="text-2xl">💬</span>
+                {comments.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                      <span className="text-2xl">💬</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      No comments for this recording
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Comments feature coming soon
-                  </p>
-                </div>
+                ) : (
+                  <div className="space-y-4 max-h-96 overflow-y-auto">
+                    {comments.map((comment) => (
+                      <div
+                        key={comment.id}
+                        className="border-l-2 border-primary/30 pl-4 py-2 hover:bg-muted/30 transition-colors rounded-r"
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-medium">
+                            {comment.author_name ||
+                              `User ${comment.user_id?.slice(0, 8)}`}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {comment.timestamp_ms !== null
+                              ? formatDuration(comment.timestamp_ms / 1000)
+                              : new Date(
+                                  comment.created_at
+                                ).toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <p className="text-sm text-foreground/90">
+                          {comment.body}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

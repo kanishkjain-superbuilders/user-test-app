@@ -381,7 +381,12 @@ export const useLiveStore = create<LiveState>((set, get) => ({
   },
 
   handleSignal: async (signal) => {
-    const { peerConnections, isBroadcaster, userIdToPresenceKey, myPresenceKey } = get()
+    const {
+      peerConnections,
+      isBroadcaster,
+      userIdToPresenceKey,
+      myPresenceKey,
+    } = get()
 
     // Ignore signals not meant for us
     if (isBroadcaster) {
