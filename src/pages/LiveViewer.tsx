@@ -305,9 +305,7 @@ export default function LiveViewer() {
             <div className="flex flex-col items-center space-y-4">
               <AlertCircle className="h-8 w-8 text-destructive" />
               <p className="text-lg font-medium">Session not available</p>
-              <Button onClick={() => navigate('/app')}>
-                Go to App
-              </Button>
+              <Button onClick={() => navigate('/app')}>Go to App</Button>
             </div>
           </CardContent>
         </Card>

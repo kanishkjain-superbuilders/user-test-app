@@ -18,6 +18,9 @@ interface PeerConnection {
   stream?: MediaStream
   role: 'broadcaster' | 'viewer'
   userId: string
+  makingOffer: boolean
+  ignoreOffer: boolean
+  isSettingRemoteAnswerPending: boolean
 }
 
 interface SignalData {
@@ -128,22 +131,15 @@ export const useLiveStore = create<LiveState>((set, get) => ({
         const newUser = newPresences[0] as unknown as PresenceState
         if (!newUser) return
 
-        const { isBroadcaster } = get()
+        const { isBroadcaster, peerConnections } = get()
 
-        // If we're the broadcaster and a viewer joined, create offer
+        // If we're the broadcaster and a viewer joined, create peer connection
+        // onnegotiationneeded will fire automatically and handle the offer
         if (isBroadcaster && newUser.role === 'viewer') {
-          const pc = get().createPeerConnection(key, 'viewer', newUser.userId)
-
-          // Create and send offer
-          pc.createOffer().then((offer) => {
-            pc.setLocalDescription(offer)
-            get().sendSignal({
-              type: 'offer',
-              from: 'broadcaster', // Always use 'broadcaster' as the from ID
-              to: newUser.userId,
-              data: offer,
-            })
-          })
+          const existingConnection = peerConnections.get(key)
+          if (!existingConnection) {
+            get().createPeerConnection(key, 'viewer', newUser.userId)
+          }
         }
       })
       .on('presence', { event: 'leave' }, ({ key }) => {
@@ -216,7 +212,13 @@ export const useLiveStore = create<LiveState>((set, get) => ({
   },
 
   createPeerConnection: (peerId, role, userId) => {
-    const { peerConnections, localStream } = get()
+    const { peerConnections, localStream, isBroadcaster } = get()
+
+    // Check if connection already exists
+    const existing = peerConnections.get(peerId)
+    if (existing) {
+      return existing.pc
+    }
 
     // Create new peer connection
     const pc = new RTCPeerConnection(ICE_SERVERS)
@@ -228,13 +230,50 @@ export const useLiveStore = create<LiveState>((set, get) => ({
       })
     }
 
+    // Initialize connection state flags for Perfect Negotiation
+    const connectionState: PeerConnection = {
+      pc,
+      role,
+      userId,
+      makingOffer: false,
+      ignoreOffer: false,
+      isSettingRemoteAnswerPending: false,
+    }
+
+    // Store the connection early so we can update flags
+    const newConnections = new Map(peerConnections)
+    newConnections.set(peerId, connectionState)
+    set({ peerConnections: newConnections })
+
+    // Perfect Negotiation: Handle negotiation needed
+    pc.onnegotiationneeded = async () => {
+      try {
+        const conn = get().peerConnections.get(peerId)
+        if (!conn) return
+
+        conn.makingOffer = true
+        await pc.setLocalDescription()
+        get().sendSignal({
+          type: 'offer',
+          from: isBroadcaster ? 'broadcaster' : userId,
+          to: isBroadcaster ? peerId : 'broadcaster',
+          data: pc.localDescription!,
+        })
+      } catch (error) {
+        console.error('Error in negotiationneeded:', error)
+      } finally {
+        const conn = get().peerConnections.get(peerId)
+        if (conn) conn.makingOffer = false
+      }
+    }
+
     // Handle ICE candidates
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         get().sendSignal({
           type: 'ice-candidate',
-          from: get().isBroadcaster ? 'broadcaster' : userId,
-          to: get().isBroadcaster ? peerId : 'broadcaster', // Viewers always send to broadcaster
+          from: isBroadcaster ? 'broadcaster' : userId,
+          to: isBroadcaster ? peerId : 'broadcaster',
           data: event.candidate.toJSON(),
         })
       }
@@ -259,11 +298,6 @@ export const useLiveStore = create<LiveState>((set, get) => ({
         get().removeRemoteStream(peerId)
       }
     }
-
-    // Store the connection
-    const newConnections = new Map(peerConnections)
-    newConnections.set(peerId, { pc, role, userId })
-    set({ peerConnections: newConnections })
 
     return pc
   },
@@ -323,45 +357,86 @@ export const useLiveStore = create<LiveState>((set, get) => ({
     // Ignore signals not meant for us
     if (signal.to !== myId) return
 
-    let pc = peerConnections.get(signal.from)?.pc
+    // Get or create peer connection
+    let conn = peerConnections.get(signal.from)
 
     // Create peer connection if it doesn't exist (viewer receiving offer from broadcaster)
-    if (!pc && signal.type === 'offer') {
-      pc = get().createPeerConnection('broadcaster', 'broadcaster', myId)
+    if (!conn && signal.type === 'offer') {
+      get().createPeerConnection('broadcaster', 'broadcaster', myId)
+      conn = get().peerConnections.get('broadcaster')
+      if (!conn) return
     }
 
-    if (!pc) {
+    if (!conn) {
       console.warn('No peer connection for signal from', signal.from)
       return
     }
 
-    switch (signal.type) {
-      case 'offer': {
+    const pc = conn.pc
+
+    // Perfect Negotiation Pattern: Determine politeness
+    // Broadcaster is always "impolite" (wins conflicts), viewers are "polite" (yield)
+    const polite = !isBroadcaster
+
+    try {
+      if (signal.type === 'offer') {
+        // This is the Perfect Negotiation pattern for handling offer collisions
+        const offerCollision =
+          signal.type === 'offer' &&
+          (conn.makingOffer || pc.signalingState !== 'stable')
+
+        conn.ignoreOffer = !polite && offerCollision
+        if (conn.ignoreOffer) {
+          return // Impolite peer ignores offers during collision
+        }
+
+        conn.isSettingRemoteAnswerPending = true
         await pc.setRemoteDescription(
           new RTCSessionDescription(signal.data as RTCSessionDescriptionInit)
         )
+        conn.isSettingRemoteAnswerPending = false
+
+        // If we're polite and there was a collision, rollback
+        if (polite && offerCollision) {
+          await pc.setLocalDescription({ type: 'rollback' })
+        }
+
+        // Create and send answer
         const answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)
         get().sendSignal({
           type: 'answer',
           from: myId,
-          to: 'broadcaster', // Always send answer back to broadcaster
+          to: signal.from,
           data: answer,
         })
-        break
-      }
-
-      case 'answer':
+      } else if (signal.type === 'answer') {
+        conn.isSettingRemoteAnswerPending = true
         await pc.setRemoteDescription(
           new RTCSessionDescription(signal.data as RTCSessionDescriptionInit)
         )
-        break
-
-      case 'ice-candidate':
-        await pc.addIceCandidate(
-          new RTCIceCandidate(signal.data as RTCIceCandidateInit)
-        )
-        break
+        conn.isSettingRemoteAnswerPending = false
+      } else if (signal.type === 'ice-candidate') {
+        try {
+          await pc.addIceCandidate(
+            new RTCIceCandidate(signal.data as RTCIceCandidateInit)
+          )
+        } catch (error) {
+          // Ignore ICE candidate errors if we're not ready for them yet
+          if (!conn.ignoreOffer && conn.isSettingRemoteAnswerPending) {
+            throw error
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error in Perfect Negotiation:', error, {
+        type: signal.type,
+        from: signal.from,
+        signalingState: pc.signalingState,
+        polite,
+        makingOffer: conn.makingOffer,
+        ignoreOffer: conn.ignoreOffer,
+      })
     }
   },
 
