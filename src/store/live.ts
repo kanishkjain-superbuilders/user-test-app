@@ -299,6 +299,15 @@ export const useLiveStore = create<LiveState>((set, get) => ({
 
         conn.makingOffer = true
         await pc.setLocalDescription()
+
+        const senders = pc.getSenders()
+        console.log('[WebRTC] Sending offer:', {
+          peerId,
+          isBroadcaster,
+          senderCount: senders.length,
+          senderTracks: senders.map(s => s.track?.kind || 'null'),
+        })
+
         get().sendSignal({
           type: 'offer',
           from: isBroadcaster ? 'broadcaster' : userId,
@@ -327,8 +336,19 @@ export const useLiveStore = create<LiveState>((set, get) => ({
 
     // Handle remote stream
     pc.ontrack = (event) => {
+      console.log('[WebRTC] ontrack event fired:', {
+        peerId,
+        isBroadcaster,
+        trackKind: event.track.kind,
+        streamCount: event.streams.length,
+      })
       const [remoteStream] = event.streams
       if (remoteStream) {
+        console.log('[WebRTC] Adding remote stream:', {
+          peerId,
+          streamId: remoteStream.id,
+          trackCount: remoteStream.getTracks().length,
+        })
         get().addRemoteStream(peerId, remoteStream)
       }
     }
@@ -399,6 +419,15 @@ export const useLiveStore = create<LiveState>((set, get) => ({
 
     // Determine our ID
     const myId = isBroadcaster ? 'broadcaster' : signal.to
+
+    console.log('[WebRTC] Received signal:', {
+      type: signal.type,
+      from: signal.from,
+      to: signal.to,
+      myId,
+      isBroadcaster,
+      willProcess: signal.to === myId,
+    })
 
     // Ignore signals not meant for us
     if (signal.to !== myId) return

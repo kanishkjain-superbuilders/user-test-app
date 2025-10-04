@@ -187,12 +187,31 @@ export default function LiveViewer() {
 
   // Display remote stream
   useEffect(() => {
+    console.log('[VIEWER] Remote streams updated:', {
+      streamCount: remoteStreams.size,
+      streamIds: Array.from(remoteStreams.keys()),
+    })
+
     if (remoteStreams.size > 0 && videoRef.current) {
       // Get the first (broadcaster's) stream
       const broadcasterStream = Array.from(remoteStreams.values())[0]
       if (broadcasterStream) {
+        console.log('[VIEWER] Setting video srcObject:', {
+          streamId: broadcasterStream.id,
+          trackCount: broadcasterStream.getTracks().length,
+          tracks: broadcasterStream.getTracks().map(t => ({
+            kind: t.kind,
+            enabled: t.enabled,
+            readyState: t.readyState,
+          })),
+        })
         videoRef.current.srcObject = broadcasterStream
       }
+    } else {
+      console.log('[VIEWER] No remote streams or video ref not ready:', {
+        hasStreams: remoteStreams.size > 0,
+        hasVideoRef: !!videoRef.current,
+      })
     }
   }, [remoteStreams])
 
