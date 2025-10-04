@@ -116,17 +116,22 @@ export default function TesterFlow() {
 
   // Listen for session-ended event from live channel (remote end recording)
   useEffect(() => {
-    if (flowState === 'recording') {
-      // Set up callback for remote session end
-      const handleRemoteEnd = () => {
-        toast.info('Recording ended by a viewer')
-        handleStopRecording()
-      }
-
-      // Register callback with live store
-      useLiveStore.getState().setOnSessionEnded(handleRemoteEnd)
+    // Only set up the callback when we start recording
+    if (flowState !== 'recording') {
+      return
     }
 
+    // Set up callback for remote session end
+    const handleRemoteEnd = () => {
+      toast.info('Recording ended by a viewer')
+      // Call handleStopRecording directly - it's already memoized with useCallback
+      handleStopRecording()
+    }
+
+    // Register callback with live store
+    useLiveStore.getState().setOnSessionEnded(handleRemoteEnd)
+
+    // Cleanup function
     return () => {
       // Clear callback on unmount or when flowState changes
       useLiveStore.getState().setOnSessionEnded(null)
