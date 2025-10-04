@@ -28,6 +28,7 @@ interface SignalData {
   from: string
   to: string
   data: RTCSessionDescriptionInit | RTCIceCandidateInit
+  fromPresenceKey?: string // Track the presence key for proper connection lookup
 }
 
 interface LiveState {
@@ -35,6 +36,7 @@ interface LiveState {
   channel: RealtimeChannel | null
   presence: Record<string, PresenceState>
   peerConnections: Map<string, PeerConnection>
+  userIdToPresenceKey: Map<string, string> // Map userId to presence key for signal routing
   localStream: MediaStream | null
   remoteStreams: Map<string, MediaStream>
   comments: Comment[]
@@ -80,6 +82,7 @@ export const useLiveStore = create<LiveState>((set, get) => ({
   channel: null,
   presence: {},
   peerConnections: new Map(),
+  userIdToPresenceKey: new Map(),
   localStream: null,
   remoteStreams: new Map(),
   comments: [],
@@ -131,7 +134,12 @@ export const useLiveStore = create<LiveState>((set, get) => ({
         const newUser = newPresences[0] as unknown as PresenceState
         if (!newUser) return
 
-        const { isBroadcaster, peerConnections } = get()
+        const { isBroadcaster, peerConnections, userIdToPresenceKey } = get()
+
+        // Map userId to presence key for signal routing
+        const newMap = new Map(userIdToPresenceKey)
+        newMap.set(newUser.userId, key)
+        set({ userIdToPresenceKey: newMap })
 
         // If we're the broadcaster and a viewer joined, create peer connection
         // onnegotiationneeded will fire automatically and handle the offer
@@ -146,6 +154,18 @@ export const useLiveStore = create<LiveState>((set, get) => ({
         // Clean up peer connection when user leaves
         get().removePeerConnection(key)
         get().removeRemoteStream(key)
+
+        // Clean up userId mapping
+        const { userIdToPresenceKey } = get()
+        const newMap = new Map(userIdToPresenceKey)
+        // Find and remove the userId that maps to this presence key
+        for (const [userId, presenceKey] of newMap.entries()) {
+          if (presenceKey === key) {
+            newMap.delete(userId)
+            break
+          }
+        }
+        set({ userIdToPresenceKey: newMap })
       })
       .on('broadcast', { event: 'signal' }, ({ payload }) => {
         // Handle WebRTC signaling
@@ -202,6 +222,7 @@ export const useLiveStore = create<LiveState>((set, get) => ({
     set({
       channel: null,
       peerConnections: new Map(),
+      userIdToPresenceKey: new Map(),
       localStream: null,
       remoteStreams: new Map(),
       presence: {},
@@ -349,7 +370,7 @@ export const useLiveStore = create<LiveState>((set, get) => ({
   },
 
   handleSignal: async (signal) => {
-    const { peerConnections, isBroadcaster } = get()
+    const { peerConnections, isBroadcaster, userIdToPresenceKey } = get()
 
     // Determine our ID
     const myId = isBroadcaster ? 'broadcaster' : signal.to
@@ -357,8 +378,16 @@ export const useLiveStore = create<LiveState>((set, get) => ({
     // Ignore signals not meant for us
     if (signal.to !== myId) return
 
-    // Get or create peer connection
+    // Find peer connection - first try signal.from directly, then map userId to presence key
     let conn = peerConnections.get(signal.from)
+
+    // If not found and we're broadcaster, try mapping userId to presence key
+    if (!conn && isBroadcaster) {
+      const presenceKey = userIdToPresenceKey.get(signal.from)
+      if (presenceKey) {
+        conn = peerConnections.get(presenceKey)
+      }
+    }
 
     // Create peer connection if it doesn't exist (viewer receiving offer from broadcaster)
     if (!conn && signal.type === 'offer') {
