@@ -12,6 +12,7 @@ import { useRecordingStore } from '../store/recording'
 import { useUploadManager } from '../hooks/useUploadManager'
 import { useLiveStore } from '../store/live'
 import { isBrowserSupported } from '../lib/recording-utils'
+import { cleanupOldUploads } from '../lib/upload-db'
 import { toast } from 'sonner'
 import { RecordingControlBar } from '../components/RecordingControlBar'
 
@@ -168,6 +169,13 @@ export default function TesterFlow() {
 
       setRecordingId(recordingId)
 
+      // Clear any old uploads from previous sessions (each session is self-contained)
+      await cleanupOldUploads(1) // Clear uploads older than 1 day
+
+      // Start uploading chunks immediately (before recording starts)
+      // This ensures chunks are uploaded as they're created
+      uploadManager.startUploading(recordingId)
+
       // Start recording with live streaming enabled
       await recordingManager.startRecording(recordingId, {
         screen: opts.screen,
@@ -180,9 +188,6 @@ export default function TesterFlow() {
 
       setFlowState('recording')
       toast.success('Recording started!')
-
-      // Start uploading chunks in background
-      uploadManager.startUploading(recordingId)
 
       // If there's a redirect URL, open it
       if (testLink.redirect_url) {
@@ -382,20 +387,30 @@ export default function TesterFlow() {
                 </p>
                 <div className="max-w-md mx-auto space-y-2">
                   <div className="flex justify-between text-sm text-muted-foreground">
-                    <span>Progress</span>
+                    <span>
+                      {uploadManager.progress.currentlyUploading > 0
+                        ? `Uploading (${uploadManager.progress.currentlyUploading} in progress)`
+                        : 'Finalizing upload'}
+                    </span>
                     <span>
                       {uploadManager.progress.uploadedParts}/
-                      {uploadManager.progress.totalParts}
+                      {uploadManager.progress.totalParts} chunks
                     </span>
                   </div>
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-primary transition-all duration-300"
+                      className="h-full bg-primary transition-all duration-300 ease-out"
                       style={{
                         width: `${uploadManager.progress.percentComplete}%`,
                       }}
                     />
                   </div>
+                  {uploadManager.progress.failed > 0 && (
+                    <div className="text-sm text-yellow-600 text-center mt-2">
+                      Retrying {uploadManager.progress.failed} failed chunk
+                      {uploadManager.progress.failed > 1 ? 's' : ''}...
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>

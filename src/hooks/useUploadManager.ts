@@ -38,7 +38,6 @@ interface UploadManager {
 const MAX_RETRIES = 3
 const RETRY_DELAYS = [1000, 2000, 4000] // Exponential backoff in milliseconds
 const MAX_CONCURRENT_UPLOADS = 3
-const UPLOAD_PROGRESS_KEY = 'upload-progress'
 
 export function useUploadManager(): UploadManager {
   const [progress, setProgress] = useState<UploadProgress>({
@@ -68,50 +67,6 @@ export function useUploadManager(): UploadManager {
     const jitter = ms * 0.2 * (Math.random() - 0.5)
     return new Promise((resolve) => setTimeout(resolve, ms + jitter))
   }
-
-  /**
-   * Save progress to localStorage for persistence
-   */
-  const saveProgress = useCallback(
-    (recordingId: string) => {
-      try {
-        const progressData = {
-          recordingId,
-          timestamp: Date.now(),
-          progress: progress,
-        }
-        localStorage.setItem(
-          `${UPLOAD_PROGRESS_KEY}-${recordingId}`,
-          JSON.stringify(progressData)
-        )
-      } catch (err) {
-        console.warn('Failed to save upload progress:', err)
-      }
-    },
-    [progress]
-  )
-
-  /**
-   * Load progress from localStorage
-   */
-  const loadProgress = useCallback((recordingId: string) => {
-    try {
-      const saved = localStorage.getItem(
-        `${UPLOAD_PROGRESS_KEY}-${recordingId}`
-      )
-      if (saved) {
-        const data = JSON.parse(saved)
-        // Only restore if less than 24 hours old
-        if (Date.now() - data.timestamp < 24 * 60 * 60 * 1000) {
-          setProgress(data.progress)
-          return true
-        }
-      }
-    } catch (err) {
-      console.warn('Failed to load upload progress:', err)
-    }
-    return false
-  }, [])
 
   /**
    * Get signed upload URL from Edge Function
@@ -158,115 +113,118 @@ export function useUploadManager(): UploadManager {
   /**
    * Upload a single chunk with retry logic and network awareness
    */
-  const uploadChunk = async (item: UploadQueueItem): Promise<void> => {
-    const itemId = item.id
-    let attempt = 0
+  const uploadChunk = useCallback(
+    async (item: UploadQueueItem): Promise<void> => {
+      const itemId = item.id
+      let attempt = 0
 
-    while (attempt <= MAX_RETRIES) {
-      // Check network status before attempting
-      if (!navigator.onLine) {
-        console.log('Network offline, pausing upload for', itemId)
-        await sleep(5000) // Wait 5 seconds before checking again
-        continue
-      }
-
-      try {
-        // Update status to uploading
-        await updateUploadQueueItem(itemId, {
-          status: 'uploading',
-          retries: attempt,
-        })
-
-        // Get signed URL + token
-        const { path, token } = await getSignedUploadUrl(
-          item.recordingId,
-          item.partIndex,
-          item.mimeType
-        )
-
-        // Create abort controller for this upload
-        const abortController = new AbortController()
-        abortControllersRef.current.set(itemId, abortController)
-
-        // Set a timeout for the upload (30 seconds)
-        const timeoutId = setTimeout(() => abortController.abort(), 30000)
+      while (attempt <= MAX_RETRIES) {
+        // Check network status before attempting
+        if (!navigator.onLine) {
+          console.log('Network offline, pausing upload for', itemId)
+          await sleep(5000) // Wait 5 seconds before checking again
+          continue
+        }
 
         try {
-          // Upload the blob using Supabase helper to the signed URL token
-          const { error: uploadError } = await supabase.storage
-            .from('recordings')
-            .uploadToSignedUrl(path, token, item.blob, {
-              upsert: true,
-              contentType: item.mimeType,
-            })
-
-          clearTimeout(timeoutId)
-
-          if (uploadError) {
-            throw new Error(uploadError.message || 'Upload failed')
-          }
-
-          // Verify the upload was successful by checking if the file exists
-          // This adds an extra safety check
-          const { error: existsError } = await supabase.storage
-            .from('recordings')
-            .list(path.substring(0, path.lastIndexOf('/')), {
-              search: path.substring(path.lastIndexOf('/') + 1),
-              limit: 1,
-            })
-
-          if (existsError) {
-            console.warn('Could not verify upload, assuming success')
-          }
-        } finally {
-          clearTimeout(timeoutId)
-        }
-
-        // Remove abort controller
-        abortControllersRef.current.delete(itemId)
-
-        // Mark as uploaded
-        await updateUploadQueueItem(itemId, {
-          status: 'uploaded',
-          uploadedAt: new Date().toISOString(),
-        })
-
-        return // Success!
-      } catch (err) {
-        attempt++
-
-        // Clean up abort controller
-        abortControllersRef.current.delete(itemId)
-
-        const errorMessage =
-          err instanceof Error ? err.message : 'Upload failed'
-        const isNetworkError =
-          errorMessage.includes('network') ||
-          errorMessage.includes('fetch') ||
-          errorMessage.includes('abort')
-
-        if (attempt > MAX_RETRIES) {
-          // Max retries exceeded, mark as failed
+          // Update status to uploading
           await updateUploadQueueItem(itemId, {
-            status: 'failed',
-            retries: attempt - 1,
-            error: errorMessage,
+            status: 'uploading',
+            retries: attempt,
           })
-          throw err
+
+          // Get signed URL + token
+          const { path, token } = await getSignedUploadUrl(
+            item.recordingId,
+            item.partIndex,
+            item.mimeType
+          )
+
+          // Create abort controller for this upload
+          const abortController = new AbortController()
+          abortControllersRef.current.set(itemId, abortController)
+
+          // Set a timeout for the upload (30 seconds)
+          const timeoutId = setTimeout(() => abortController.abort(), 30000)
+
+          try {
+            // Upload the blob using Supabase helper to the signed URL token
+            const { error: uploadError } = await supabase.storage
+              .from('recordings')
+              .uploadToSignedUrl(path, token, item.blob, {
+                upsert: true,
+                contentType: item.mimeType,
+              })
+
+            clearTimeout(timeoutId)
+
+            if (uploadError) {
+              throw new Error(uploadError.message || 'Upload failed')
+            }
+
+            // Verify the upload was successful by checking if the file exists
+            // This adds an extra safety check
+            const { error: existsError } = await supabase.storage
+              .from('recordings')
+              .list(path.substring(0, path.lastIndexOf('/')), {
+                search: path.substring(path.lastIndexOf('/') + 1),
+                limit: 1,
+              })
+
+            if (existsError) {
+              console.warn('Could not verify upload, assuming success')
+            }
+          } finally {
+            clearTimeout(timeoutId)
+          }
+
+          // Remove abort controller
+          abortControllersRef.current.delete(itemId)
+
+          // Mark as uploaded
+          await updateUploadQueueItem(itemId, {
+            status: 'uploaded',
+            uploadedAt: new Date().toISOString(),
+          })
+
+          return // Success!
+        } catch (err) {
+          attempt++
+
+          // Clean up abort controller
+          abortControllersRef.current.delete(itemId)
+
+          const errorMessage =
+            err instanceof Error ? err.message : 'Upload failed'
+          const isNetworkError =
+            errorMessage.includes('network') ||
+            errorMessage.includes('fetch') ||
+            errorMessage.includes('abort')
+
+          if (attempt > MAX_RETRIES) {
+            // Max retries exceeded, mark as failed
+            await updateUploadQueueItem(itemId, {
+              status: 'failed',
+              retries: attempt - 1,
+              error: errorMessage,
+            })
+            throw err
+          }
+
+          // Use longer delay for network errors
+          const baseDelay = RETRY_DELAYS[attempt - 1] || 4000
+          const delay = isNetworkError ? baseDelay * 2 : baseDelay
+
+          console.log(
+            `Upload attempt ${attempt} failed for part ${item.partIndex}: ${errorMessage}`,
+            `Retrying in ${delay}ms...`
+          )
+          await sleep(delay)
         }
-
-        // Use longer delay for network errors
-        const baseDelay = RETRY_DELAYS[attempt - 1] || 4000
-        const delay = isNetworkError ? baseDelay * 2 : baseDelay
-
-        console.log(
-          `Upload attempt ${attempt} failed for part ${item.partIndex}: ${errorMessage}`,
-          `Retrying in ${delay}ms...`
-        )
-        await sleep(delay)
       }
-    }
-  }
+    },
+    []
+  )
 
   /**
    * Update progress from IndexedDB stats and save to localStorage
@@ -282,18 +240,15 @@ export function useUploadManager(): UploadManager {
         totalBytes: 0, // Would need to track individually
         percentComplete:
           stats.total > 0
-            ? Math.round((stats.uploaded / stats.total) * 100)
+            ? Math.round(
+                ((stats.uploaded + stats.uploading * 0.5) / stats.total) * 100
+              )
             : 0,
         currentlyUploading: stats.uploading,
         failed: stats.failed,
       }
 
       setProgress(newProgress)
-
-      // Save progress for recovery
-      if (recordingId) {
-        saveProgress(recordingId)
-      }
     } catch (err) {
       console.error('Failed to update progress:', err)
     }
@@ -302,106 +257,105 @@ export function useUploadManager(): UploadManager {
   /**
    * Process upload queue with network awareness
    */
-  const processQueue = async (recordingId: string) => {
-    currentRecordingIdRef.current = recordingId
+  const processQueue = useCallback(
+    async (recordingId: string) => {
+      currentRecordingIdRef.current = recordingId
 
-    while (uploadingRef.current) {
-      // Check network status
-      if (!navigator.onLine) {
-        console.log('Network offline, pausing queue processing')
-        await sleep(5000) // Wait 5 seconds before checking again
-        continue
-      }
-
-      try {
-        // Get pending uploads (including failed ones for retry)
-        const pending = await getPendingUploads(recordingId)
-
-        if (pending.length === 0) {
-          // All done!
-          break
+      while (uploadingRef.current) {
+        // Check network status
+        if (!navigator.onLine) {
+          console.log('Network offline, pausing queue processing')
+          await sleep(5000) // Wait 5 seconds before checking again
+          continue
         }
 
-        // Sort by part index to maintain order, with failed items first
-        pending.sort((a, b) => {
-          if (a.status === 'failed' && b.status !== 'failed') return -1
-          if (a.status !== 'failed' && b.status === 'failed') return 1
-          return a.partIndex - b.partIndex
-        })
+        try {
+          // Get pending uploads (including failed ones for retry)
+          const pending = await getPendingUploads(recordingId)
 
-        // Process uploads with concurrency limit
-        const uploadPromises: Promise<void>[] = []
-
-        for (const item of pending) {
-          if (activeUploadsRef.current >= MAX_CONCURRENT_UPLOADS) {
-            break // Wait for some to complete
+          if (pending.length === 0) {
+            // All done!
+            break
           }
 
-          // Skip if we're shutting down
-          if (!uploadingRef.current) break
+          // Sort by part index to maintain order, with failed items first
+          pending.sort((a, b) => {
+            if (a.status === 'failed' && b.status !== 'failed') return -1
+            if (a.status !== 'failed' && b.status === 'failed') return 1
+            return a.partIndex - b.partIndex
+          })
 
-          activeUploadsRef.current++
+          // Process uploads with concurrency limit
+          const uploadPromises: Promise<void>[] = []
 
-          const uploadPromise = uploadChunk(item)
-            .catch((err) => {
-              console.error(`Failed to upload part ${item.partIndex}:`, err)
-              // Don't set error for individual chunk failures
-              // We'll retry them
-            })
-            .finally(() => {
-              activeUploadsRef.current--
-              updateProgress(recordingId)
-            })
+          for (const item of pending) {
+            if (activeUploadsRef.current >= MAX_CONCURRENT_UPLOADS) {
+              break // Wait for some to complete
+            }
 
-          uploadPromises.push(uploadPromise)
+            // Skip if we're shutting down
+            if (!uploadingRef.current) break
+
+            activeUploadsRef.current++
+
+            const uploadPromise = uploadChunk(item)
+              .catch((err) => {
+                console.error(`Failed to upload part ${item.partIndex}:`, err)
+                // Don't set error for individual chunk failures
+                // We'll retry them
+              })
+              .finally(() => {
+                activeUploadsRef.current--
+                // Update progress immediately after each chunk
+                updateProgress(recordingId)
+              })
+
+            uploadPromises.push(uploadPromise)
+          }
+
+          // Wait for current batch to complete
+          if (uploadPromises.length > 0) {
+            await Promise.all(uploadPromises)
+          }
+
+          // Update progress after batch completes
+          await updateProgress(recordingId)
+
+          // Very small delay before next iteration for better responsiveness
+          await sleep(50)
+        } catch (err) {
+          console.error('Error processing upload queue:', err)
+          setError('Error processing upload queue')
+
+          // Wait longer before retrying on error
+          await sleep(5000)
         }
-
-        // Wait for current batch to complete
-        if (uploadPromises.length > 0) {
-          await Promise.all(uploadPromises)
-        }
-
-        // Update progress
-        await updateProgress(recordingId)
-
-        // Small delay before next iteration
-        await sleep(100)
-      } catch (err) {
-        console.error('Error processing upload queue:', err)
-        setError('Error processing upload queue')
-
-        // Wait longer before retrying on error
-        await sleep(5000)
       }
-    }
 
-    currentRecordingIdRef.current = null
-  }
+      currentRecordingIdRef.current = null
+    },
+    [uploadChunk]
+  )
 
   /**
    * Start uploading chunks for a recording
    */
   const startUploading = useCallback(
     async (recordingId: string): Promise<void> => {
-      // If an upload loop is already running, wait until it's idle
+      // If already uploading this recording, just return
+      if (
+        uploadingRef.current &&
+        currentRecordingIdRef.current === recordingId
+      ) {
+        console.log('Upload already in progress for this recording')
+        return
+      }
+
+      // If uploading a different recording, stop it
       if (uploadingRef.current) {
-        setIsUploading(true)
-        setError(null)
-        // Wait until no pending or uploading items remain
-        // Poll at a short interval to avoid busy looping
-        // Also surface failures once finished
-        for (;;) {
-          const stats = await getUploadStats(recordingId)
-          const inFlight = stats.pending + stats.uploading
-          if (inFlight === 0) {
-            if (stats.failed > 0) {
-              setError(`${stats.failed} chunks failed to upload`)
-            }
-            setIsUploading(false)
-            return
-          }
-          await sleep(200)
-        }
+        uploadingRef.current = false
+        // Wait a bit for the current upload to stop
+        await sleep(500)
       }
 
       uploadingRef.current = true
@@ -500,90 +454,24 @@ export function useUploadManager(): UploadManager {
           })
         }
 
-        // Start uploading if not already running
-        if (!uploadingRef.current) {
-          // Call startUploading directly without dependency
-          uploadingRef.current = true
-          setIsUploading(true)
-          setError(null)
-
-          try {
-            await updateProgress(recordingId)
-            await processQueue(recordingId)
-
-            const stats = await getUploadStats(recordingId)
-            if (stats.failed > 0) {
-              setError(`${stats.failed} chunks failed to upload`)
-            }
-          } catch (err) {
-            console.error('Upload error:', err)
-            setError(err instanceof Error ? err.message : 'Upload failed')
-          } finally {
-            uploadingRef.current = false
-            setIsUploading(false)
-          }
-        }
+        // Start uploading again
+        await startUploading(recordingId)
       } catch (err) {
         console.error('Failed to retry uploads:', err)
         setError('Failed to retry uploads')
       }
     },
-    []
+    [startUploading]
   )
 
   /**
-   * Resume pending uploads from any previous sessions
+   * Resume pending uploads - simplified to just return a no-op
+   * We don't want to resume uploads from previous sessions
    */
   const resumePendingUploads = useCallback(async (): Promise<void> => {
-    try {
-      // Check localStorage for any incomplete uploads
-      const keys = Object.keys(localStorage).filter((key) =>
-        key.startsWith(UPLOAD_PROGRESS_KEY)
-      )
-
-      for (const key of keys) {
-        const recordingId = key.replace(`${UPLOAD_PROGRESS_KEY}-`, '')
-        const stats = await getUploadStats(recordingId)
-
-        if (stats.pending > 0 || stats.failed > 0) {
-          console.log(
-            `Found ${stats.pending} pending and ${stats.failed} failed uploads for ${recordingId}`
-          )
-
-          // Load saved progress
-          loadProgress(recordingId)
-
-          // Start uploading inline to avoid circular dependency
-          if (!uploadingRef.current) {
-            uploadingRef.current = true
-            setIsUploading(true)
-            setError(null)
-
-            try {
-              await updateProgress(recordingId)
-              await processQueue(recordingId)
-
-              const finalStats = await getUploadStats(recordingId)
-              if (finalStats.failed > 0) {
-                setError(`${finalStats.failed} chunks failed to upload`)
-              }
-            } catch (err) {
-              console.error('Upload error:', err)
-              setError(err instanceof Error ? err.message : 'Upload failed')
-            } finally {
-              uploadingRef.current = false
-              setIsUploading(false)
-            }
-          }
-        } else if (stats.total > 0 && stats.uploaded === stats.total) {
-          // Clean up completed upload from localStorage
-          localStorage.removeItem(key)
-        }
-      }
-    } catch (err) {
-      console.error('Failed to resume pending uploads:', err)
-    }
-  }, [loadProgress])
+    // No-op: Each recording session is self-contained
+    // We don't resume uploads from previous sessions
+  }, [])
 
   /**
    * Run cleanup periodically
@@ -630,10 +518,7 @@ export function useUploadManager(): UploadManager {
     window.addEventListener('online', handleOnline)
     window.addEventListener('offline', handleOffline)
 
-    // Check for pending uploads on mount
-    resumePendingUploads()
-
-    // Run cleanup on mount
+    // Run cleanup on mount (for old uploads from previous sessions)
     runCleanup()
 
     // Schedule cleanup to run every hour
@@ -644,7 +529,7 @@ export function useUploadManager(): UploadManager {
       window.removeEventListener('offline', handleOffline)
       clearInterval(cleanupInterval)
     }
-  }, [startUploading, resumePendingUploads, runCleanup])
+  }, [startUploading, runCleanup])
 
   /**
    * Cleanup on unmount
