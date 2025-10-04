@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { Database } from '../lib/database.types'
@@ -10,6 +10,7 @@ import { Video, Mic, Play, AlertCircle, CheckCircle } from 'lucide-react'
 import { useRecordingManager } from '../hooks/useRecordingManager'
 import { useRecordingStore } from '../store/recording'
 import { useUploadManager } from '../hooks/useUploadManager'
+import { useLiveStore } from '../store/live'
 import { isBrowserSupported } from '../lib/recording-utils'
 import { cleanupOldUploads } from '../lib/upload-db'
 import { toast } from 'sonner'
@@ -113,10 +114,33 @@ export default function TesterFlow() {
     }
   }, [recordingId, recordingManager, uploadManager])
 
+  // Store handleStopRecording in a ref to access the latest version
+  // without causing effect re-runs
+  const handleStopRecordingRef = useRef(handleStopRecording)
+  handleStopRecordingRef.current = handleStopRecording
+
+  // Create a stable callback that won't change between renders
+  const handleRemoteEnd = useCallback(() => {
+    toast.info('Recording ended by a viewer')
+    // Use the ref to get the current version of handleStopRecording
+    handleStopRecordingRef.current()
+  }, []) // Empty deps array - this function never changes
+
   // Listen for session-ended event from live channel (remote end recording)
-  // NOTE: Temporarily disabled due to infinite loop issues
-  // This functionality allows viewers to end the recording remotely
-  // TODO: Revisit this implementation in the future
+  useEffect(() => {
+    if (flowState === 'recording') {
+      // Register the stable callback with live store
+      useLiveStore.getState().setOnSessionEnded(handleRemoteEnd)
+    } else {
+      // Clear callback when not recording
+      useLiveStore.getState().setOnSessionEnded(null)
+    }
+
+    // Cleanup on unmount
+    return () => {
+      useLiveStore.getState().setOnSessionEnded(null)
+    }
+  }, [flowState, handleRemoteEnd]) // handleRemoteEnd is stable, won't cause re-runs
 
   const startRecordingFlow = async () => {
     if (!testLink) return

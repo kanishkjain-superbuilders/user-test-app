@@ -496,5 +496,11 @@ export const useLiveStore = create<LiveState>((set, get) => ({
 
   setConnectionState: (state) => set({ connectionState: state }),
 
-  setOnSessionEnded: (callback) => set({ onSessionEnded: callback }),
+  setOnSessionEnded: (callback) => {
+    // Only update if the callback actually changed to prevent unnecessary renders
+    const current = get().onSessionEnded
+    if (current !== callback) {
+      set({ onSessionEnded: callback })
+    }
+  },
 }))
