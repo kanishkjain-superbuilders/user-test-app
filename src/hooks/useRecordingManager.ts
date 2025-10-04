@@ -338,11 +338,7 @@ export function useRecordingManager(): RecordingManager {
               )
 
               setState((prev) => ({ ...prev, liveSessionId: sessionId }))
-              console.log('[BROADCASTER] Live streaming initialized:', {
-                sessionId,
-                channelName,
-                testerId: testerIdRef.current,
-              })
+              console.log('Live streaming started for session:', sessionId)
             }
           } catch (error) {
             console.error('Failed to start live streaming:', error)

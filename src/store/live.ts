@@ -128,16 +128,6 @@ export const useLiveStore = create<LiveState>((set, get) => ({
           }
         })
 
-        const { isBroadcaster } = get()
-        if (isBroadcaster) {
-          console.log('[BROADCASTER] Presence sync:', {
-            totalPresence: Object.keys(presenceMap).length,
-            viewerCount,
-            presenceKeys: Object.keys(presenceMap),
-            presenceDetails: presenceMap,
-          })
-        }
-
         set({ presence: presenceMap, viewerCount })
       })
       .on('presence', { event: 'join' }, ({ key, newPresences }) => {
@@ -156,11 +146,6 @@ export const useLiveStore = create<LiveState>((set, get) => ({
         if (isBroadcaster && newUser.role === 'viewer') {
           const existingConnection = peerConnections.get(key)
           if (!existingConnection) {
-            console.log('[BROADCASTER] Creating peer connection for viewer:', {
-              presenceKey: key,
-              viewerUserId: newUser.userId,
-              existingConnections: Array.from(peerConnections.keys()),
-            })
             get().createPeerConnection(key, 'viewer', newUser.userId)
           }
         }
@@ -261,19 +246,9 @@ export const useLiveStore = create<LiveState>((set, get) => ({
 
     // Add local stream tracks
     if (localStream) {
-      const tracks = localStream.getTracks()
-      if (isBroadcaster) {
-        console.log('[BROADCASTER] Adding tracks to peer connection:', {
-          peerId,
-          trackCount: tracks.length,
-          trackTypes: tracks.map(t => t.kind),
-        })
-      }
-      tracks.forEach((track) => {
+      localStream.getTracks().forEach((track) => {
         pc.addTrack(track, localStream)
       })
-    } else if (isBroadcaster) {
-      console.warn('[BROADCASTER] No local stream available when creating peer connection for', peerId)
     }
 
     // Initialize connection state flags for Perfect Negotiation
@@ -299,15 +274,6 @@ export const useLiveStore = create<LiveState>((set, get) => ({
 
         conn.makingOffer = true
         await pc.setLocalDescription()
-
-        const senders = pc.getSenders()
-        console.log('[WebRTC] Sending offer:', {
-          peerId,
-          isBroadcaster,
-          senderCount: senders.length,
-          senderTracks: senders.map(s => s.track?.kind || 'null'),
-        })
-
         get().sendSignal({
           type: 'offer',
           from: isBroadcaster ? 'broadcaster' : userId,
@@ -336,19 +302,8 @@ export const useLiveStore = create<LiveState>((set, get) => ({
 
     // Handle remote stream
     pc.ontrack = (event) => {
-      console.log('[WebRTC] ontrack event fired:', {
-        peerId,
-        isBroadcaster,
-        trackKind: event.track.kind,
-        streamCount: event.streams.length,
-      })
       const [remoteStream] = event.streams
       if (remoteStream) {
-        console.log('[WebRTC] Adding remote stream:', {
-          peerId,
-          streamId: remoteStream.id,
-          trackCount: remoteStream.getTracks().length,
-        })
         get().addRemoteStream(peerId, remoteStream)
       }
     }
@@ -420,15 +375,6 @@ export const useLiveStore = create<LiveState>((set, get) => ({
     // Determine our ID
     const myId = isBroadcaster ? 'broadcaster' : signal.to
 
-    console.log('[WebRTC] Received signal:', {
-      type: signal.type,
-      from: signal.from,
-      to: signal.to,
-      myId,
-      isBroadcaster,
-      willProcess: signal.to === myId,
-    })
-
     // Ignore signals not meant for us
     if (signal.to !== myId) return
 
@@ -438,14 +384,6 @@ export const useLiveStore = create<LiveState>((set, get) => ({
     // If not found and we're broadcaster, try mapping userId to presence key
     if (!conn && isBroadcaster) {
       const presenceKey = userIdToPresenceKey.get(signal.from)
-      console.log('[BROADCASTER] Received signal - looking up peer connection:', {
-        signalType: signal.type,
-        signalFrom: signal.from,
-        signalTo: signal.to,
-        presenceKeyFromMap: presenceKey,
-        availableConnections: Array.from(peerConnections.keys()),
-        userIdToPresenceKeyMap: Array.from(userIdToPresenceKey.entries()),
-      })
       if (presenceKey) {
         conn = peerConnections.get(presenceKey)
       }

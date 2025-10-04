@@ -714,9 +714,7 @@ export default function Dashboard() {
                   <Card
                     key={session.id}
                     className="cursor-pointer hover:border-primary hover:shadow-lg transition-all border-green-500"
-                    onClick={() =>
-                      navigate(`/app/live/${session.id}`)
-                    }
+                    onClick={() => navigate(`/app/live/${session.id}`)}
                   >
                     <CardHeader>
                       <div className="flex items-center justify-between">

@@ -66,19 +66,18 @@ export default function LiveViewer() {
   } = useLiveStore()
 
   // Callback ref to ensure stream is set immediately when video element mounts
-  const setVideoRef = useCallback((element: HTMLVideoElement | null) => {
-    videoRef.current = element
-    if (element && remoteStreams.size > 0) {
-      const broadcasterStream = Array.from(remoteStreams.values())[0]
-      if (broadcasterStream) {
-        console.log('[VIEWER] Setting srcObject via callback ref:', {
-          streamId: broadcasterStream.id,
-          trackCount: broadcasterStream.getTracks().length,
-        })
-        element.srcObject = broadcasterStream
+  const setVideoRef = useCallback(
+    (element: HTMLVideoElement | null) => {
+      videoRef.current = element
+      if (element && remoteStreams.size > 0) {
+        const broadcasterStream = Array.from(remoteStreams.values())[0]
+        if (broadcasterStream) {
+          element.srcObject = broadcasterStream
+        }
       }
-    }
-  }, [remoteStreams])
+    },
+    [remoteStreams]
+  )
 
   // Get user ID on mount - require authentication
   useEffect(() => {
@@ -158,11 +157,6 @@ export default function LiveViewer() {
         } as any) // eslint-disable-line @typescript-eslint/no-explicit-any
 
         // Initialize WebRTC channel as viewer
-        console.log('[VIEWER] Attempting to join channel:', {
-          sessionId: typedSession.id,
-          channelName: typedSession.channel_name,
-          viewerId: userId,
-        })
         await initChannel(typedSession.channel_name || '', 'viewer', userId)
 
         toast.success('Joined live session!')
@@ -202,31 +196,12 @@ export default function LiveViewer() {
 
   // Display remote stream
   useEffect(() => {
-    console.log('[VIEWER] Remote streams updated:', {
-      streamCount: remoteStreams.size,
-      streamIds: Array.from(remoteStreams.keys()),
-    })
-
     if (remoteStreams.size > 0 && videoRef.current) {
       // Get the first (broadcaster's) stream
       const broadcasterStream = Array.from(remoteStreams.values())[0]
       if (broadcasterStream) {
-        console.log('[VIEWER] Setting video srcObject:', {
-          streamId: broadcasterStream.id,
-          trackCount: broadcasterStream.getTracks().length,
-          tracks: broadcasterStream.getTracks().map(t => ({
-            kind: t.kind,
-            enabled: t.enabled,
-            readyState: t.readyState,
-          })),
-        })
         videoRef.current.srcObject = broadcasterStream
       }
-    } else {
-      console.log('[VIEWER] No remote streams or video ref not ready:', {
-        hasStreams: remoteStreams.size > 0,
-        hasVideoRef: !!videoRef.current,
-      })
     }
   }, [remoteStreams])
 
