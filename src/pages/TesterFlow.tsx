@@ -10,7 +10,6 @@ import { Video, Mic, Play, AlertCircle, CheckCircle } from 'lucide-react'
 import { useRecordingManager } from '../hooks/useRecordingManager'
 import { useRecordingStore } from '../store/recording'
 import { useUploadManager } from '../hooks/useUploadManager'
-import { useLiveStore } from '../store/live'
 import { isBrowserSupported } from '../lib/recording-utils'
 import { cleanupOldUploads } from '../lib/upload-db'
 import { toast } from 'sonner'
@@ -115,28 +114,9 @@ export default function TesterFlow() {
   }, [recordingId, recordingManager, uploadManager])
 
   // Listen for session-ended event from live channel (remote end recording)
-  useEffect(() => {
-    // Only set up the callback when we start recording
-    if (flowState !== 'recording') {
-      return
-    }
-
-    // Set up callback for remote session end
-    const handleRemoteEnd = () => {
-      toast.info('Recording ended by a viewer')
-      // Call handleStopRecording directly - it's already memoized with useCallback
-      handleStopRecording()
-    }
-
-    // Register callback with live store
-    useLiveStore.getState().setOnSessionEnded(handleRemoteEnd)
-
-    // Cleanup function
-    return () => {
-      // Clear callback on unmount or when flowState changes
-      useLiveStore.getState().setOnSessionEnded(null)
-    }
-  }, [flowState, handleStopRecording])
+  // NOTE: Temporarily disabled due to infinite loop issues
+  // This functionality allows viewers to end the recording remotely
+  // TODO: Revisit this implementation in the future
 
   const startRecordingFlow = async () => {
     if (!testLink) return
