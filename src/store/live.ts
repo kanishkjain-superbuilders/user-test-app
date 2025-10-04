@@ -381,14 +381,14 @@ export const useLiveStore = create<LiveState>((set, get) => ({
   },
 
   handleSignal: async (signal) => {
-    const { peerConnections, isBroadcaster, userIdToPresenceKey } = get()
+    const { peerConnections, isBroadcaster, userIdToPresenceKey, myPresenceKey } = get()
 
     // Ignore signals not meant for us
     if (isBroadcaster) {
       if (signal.to !== 'broadcaster') return
     } else {
-      // Viewers should accept signals addressed to them (by presence key or userId)
-      if (signal.to !== 'broadcaster') return // Viewers only process signals from broadcaster
+      // Viewers: accept signals addressed to our presence key
+      if (signal.to !== myPresenceKey) return
     }
 
     // Find the peer connection
