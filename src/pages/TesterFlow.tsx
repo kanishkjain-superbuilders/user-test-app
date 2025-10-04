@@ -139,10 +139,17 @@ export default function TesterFlow() {
 
       // HYBRID APPROACH: Try to handle clean shutdown on tab close
       handleBeforeUnload = () => {
-        const { sessionId, testerId } = recordingManagerRef.current.getSessionInfo()
+        const { sessionId, testerId } =
+          recordingManagerRef.current.getSessionInfo()
 
         if (sessionId && recordingId) {
           console.log('[TesterFlow] Tab closing - attempting clean shutdown')
+          console.log(
+            '[TesterFlow] Session:',
+            sessionId,
+            'Recording:',
+            recordingId
+          )
 
           // Try to end session and create manifest properly
           const payload = JSON.stringify({
@@ -159,17 +166,31 @@ export default function TesterFlow() {
 
           console.log('[TesterFlow] Clean shutdown beacon sent:', sent)
 
-          // Try to create a basic manifest if we can
+          // Try to upload manifest to blob storage if we have one
           const manifest = useRecordingStore.getState().manifest
           if (manifest) {
-            const manifestPayload = JSON.stringify({
-              recordingId: recordingId,
-              manifest: manifest,
-            })
+            const manifestPayload = new Blob(
+              [
+                JSON.stringify({
+                  recordingId: recordingId,
+                  manifest: manifest,
+                }),
+              ],
+              { type: 'application/json' }
+            )
 
-            navigator.sendBeacon(
+            // Add authorization header (anon key for anonymous recordings)
+            const formData = new FormData()
+            formData.append('data', manifestPayload)
+
+            const manifestSent = navigator.sendBeacon(
               `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/finalize-recording`,
-              new Blob([manifestPayload], { type: 'application/json' })
+              manifestPayload
+            )
+
+            console.log(
+              '[TesterFlow] Manifest upload beacon sent:',
+              manifestSent
             )
           }
         }

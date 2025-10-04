@@ -27,14 +27,12 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Grant execute to anon role for testers
 GRANT EXECUTE ON FUNCTION update_session_heartbeat TO anon;
 
--- Function to cleanup stale sessions and create recovery manifests
+-- Function to cleanup stale sessions (simplified - just ends the sessions)
+-- Recovery manifest creation should be handled by Edge Function or application
 CREATE OR REPLACE FUNCTION cleanup_stale_live_sessions() RETURNS INTEGER AS $$
 DECLARE
     v_count INTEGER := 0;
     v_session RECORD;
-    v_chunk_count INTEGER;
-    v_duration_estimate INTEGER;
-    v_manifest JSONB;
 BEGIN
     -- Process each stale session
     FOR v_session IN
@@ -42,10 +40,8 @@ BEGIN
             ls.id as session_id,
             ls.recording_id,
             ls.tester_id,
-            ls.started_at,
-            r.object_path
+            ls.started_at
         FROM live_sessions ls
-        JOIN recordings r ON r.id = ls.recording_id
         WHERE ls.status = 'active'
         AND ls.last_heartbeat < now() - INTERVAL '30 seconds'
     LOOP
@@ -65,41 +61,13 @@ BEGIN
             live_session_id = v_session.session_id
             AND status = 'active';
 
-        -- Try to count uploaded chunks in storage (estimate)
-        -- Assuming chunks are named with pattern: recordingId/part-000.webm
-        v_chunk_count := 0;
-
-        -- Estimate duration (5 seconds per chunk is the default)
-        v_duration_estimate := v_chunk_count * 5000; -- milliseconds
-
-        -- If we have a started_at, use actual elapsed time
-        IF v_session.started_at IS NOT NULL THEN
-            v_duration_estimate := EXTRACT(EPOCH FROM (now() - v_session.started_at)) * 1000;
-        END IF;
-
-        -- Create recovery manifest
-        v_manifest := jsonb_build_object(
-            'version', '1.0',
-            'recordingId', v_session.recording_id,
-            'mimeType', 'video/webm',
-            'totalParts', v_chunk_count,
-            'duration', v_duration_estimate,
-            'width', 1920,
-            'height', 1080,
-            'recovered', true,
-            'recoveryReason', 'session_timeout',
-            'recoveredAt', now()
-        );
-
-        -- Update recording with recovery manifest
+        -- Mark recording for recovery (actual recovery handled by Edge Function)
         UPDATE recordings
         SET
-            status = 'recovered',
-            manifest = v_manifest,
-            duration_ms = v_duration_estimate,
+            status = 'needs_recovery',
             updated_at = now()
         WHERE id = v_session.recording_id
-        AND manifest IS NULL; -- Only if no manifest exists yet
+        AND status = 'processing';
 
         v_count := v_count + 1;
     END LOOP;

@@ -132,7 +132,7 @@ export function useRecordingManager(): RecordingManager {
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current = null
     }
-  }, [])
+  }, [liveStore])
 
   /**
    * Stop timer

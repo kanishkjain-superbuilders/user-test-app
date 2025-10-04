@@ -77,6 +77,37 @@ export default function RecordingPlayer() {
       )
 
       if (!signedUrlResponse.ok) {
+        // If manifest is missing, try recovery
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const status = (recordingData as any)?.status
+        if (status === 'needs_recovery' || status === 'processing') {
+          console.log(
+            '[RecordingPlayer] Recording needs recovery, attempting to create manifest...'
+          )
+
+          // Call recovery Edge Function
+          const recoverResponse = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/recover-recording`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: session?.session?.access_token
+                  ? `Bearer ${session.session.access_token}`
+                  : `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+              },
+              body: JSON.stringify({
+                recordingId: id,
+              }),
+            }
+          )
+
+          if (recoverResponse.ok) {
+            // Reload the recording after recovery
+            await loadRecording()
+            return
+          }
+        }
         throw new Error('Failed to get manifest signed URL')
       }
 
