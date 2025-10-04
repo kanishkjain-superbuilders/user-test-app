@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { Database } from '../lib/database.types'
@@ -180,16 +180,27 @@ export default function TesterFlow() {
     }
   }, [recordingId, recordingManager, uploadManager])
 
+  // Store refs to avoid infinite loops from changing dependencies
+  const recordingManagerRef = useRef(recordingManager)
+  recordingManagerRef.current = recordingManager
+
+  const handleStopRecordingRef = useRef(handleStopRecording)
+  handleStopRecordingRef.current = handleStopRecording
+
   // Listen for session-ended event from live channel (remote end recording)
   useEffect(() => {
-    if (flowState !== 'recording') return
+    if (flowState !== 'recording') {
+      // Clear callback when not recording
+      useLiveStore.getState().setOnSessionEnded(null)
+      return
+    }
 
     // Set up callback for remote session end
     const handleRemoteEnd = () => {
       // Mark recording manager that session was ended remotely to prevent duplicate RPC call
-      recordingManager.markSessionEndedRemotely()
+      recordingManagerRef.current.markSessionEndedRemotely()
       toast.info('Recording ended by a viewer')
-      handleStopRecording()
+      handleStopRecordingRef.current()
     }
 
     // Register callback with live store
@@ -199,7 +210,7 @@ export default function TesterFlow() {
       // Clear callback on unmount
       useLiveStore.getState().setOnSessionEnded(null)
     }
-  }, [flowState, handleStopRecording, recordingManager])
+  }, [flowState])
 
   const startRecordingFlow = async () => {
     if (!testLink) return
