@@ -449,11 +449,14 @@ export const useLiveStore = create<LiveState>((set, get) => ({
           data: answer,
         })
       } else if (signal.type === 'answer') {
-        conn.isSettingRemoteAnswerPending = true
-        await pc.setRemoteDescription(
-          new RTCSessionDescription(signal.data as RTCSessionDescriptionInit)
-        )
-        conn.isSettingRemoteAnswerPending = false
+        // Only process answer if we're expecting one (not in stable state)
+        if (pc.signalingState !== 'stable' && pc.signalingState !== 'closed') {
+          conn.isSettingRemoteAnswerPending = true
+          await pc.setRemoteDescription(
+            new RTCSessionDescription(signal.data as RTCSessionDescriptionInit)
+          )
+          conn.isSettingRemoteAnswerPending = false
+        }
       } else if (signal.type === 'ice-candidate') {
         try {
           await pc.addIceCandidate(
