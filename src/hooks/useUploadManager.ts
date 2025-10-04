@@ -117,6 +117,7 @@ export function useUploadManager(): UploadManager {
     async (item: UploadQueueItem): Promise<void> => {
       const itemId = item.id
       let attempt = 0
+      console.log(`[Upload] Starting upload for chunk ${item.partIndex}, size: ${item.blob.size} bytes`)
 
       while (attempt <= MAX_RETRIES) {
         // Check network status before attempting
@@ -139,6 +140,7 @@ export function useUploadManager(): UploadManager {
             item.partIndex,
             item.mimeType
           )
+          console.log(`[Upload] Got signed URL for chunk ${item.partIndex}, path: ${path}`)
 
           // Create abort controller for this upload
           const abortController = new AbortController()
@@ -186,6 +188,7 @@ export function useUploadManager(): UploadManager {
             status: 'uploaded',
             uploadedAt: new Date().toISOString(),
           })
+          console.log(`[Upload] Successfully uploaded chunk ${item.partIndex}`)
 
           return // Success!
         } catch (err) {
@@ -260,6 +263,7 @@ export function useUploadManager(): UploadManager {
   const processQueue = useCallback(
     async (recordingId: string) => {
       currentRecordingIdRef.current = recordingId
+      console.log(`[Upload] Starting processQueue for recording ${recordingId}`)
 
       while (uploadingRef.current) {
         // Check network status
@@ -272,10 +276,12 @@ export function useUploadManager(): UploadManager {
         try {
           // Get pending uploads (including failed ones for retry)
           const pending = await getPendingUploads(recordingId)
+          console.log(`[Upload] Found ${pending.length} pending chunks to upload`)
 
           if (pending.length === 0) {
-            // All done!
-            break
+            // No chunks to upload yet, wait and check again
+            await sleep(1000)
+            continue
           }
 
           // Sort by part index to maintain order, with failed items first
@@ -342,22 +348,26 @@ export function useUploadManager(): UploadManager {
    */
   const startUploading = useCallback(
     async (recordingId: string): Promise<void> => {
+      console.log(`[Upload] startUploading called for recording ${recordingId}`)
+
       // If already uploading this recording, just return
       if (
         uploadingRef.current &&
         currentRecordingIdRef.current === recordingId
       ) {
-        console.log('Upload already in progress for this recording')
+        console.log('[Upload] Upload already in progress for this recording')
         return
       }
 
       // If uploading a different recording, stop it
       if (uploadingRef.current) {
+        console.log('[Upload] Stopping previous upload')
         uploadingRef.current = false
         // Wait a bit for the current upload to stop
         await sleep(500)
       }
 
+      console.log('[Upload] Starting new upload process')
       uploadingRef.current = true
       setIsUploading(true)
       setError(null)

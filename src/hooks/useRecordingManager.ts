@@ -383,6 +383,7 @@ export function useRecordingManager(): RecordingManager {
             // correct totalParts even if uploads are still being queued.
             const currentPartIndex = partIndexRef.current
             partIndexRef.current = currentPartIndex + 1
+            console.log(`[Recording] Chunk ${currentPartIndex} created, size: ${blob.size} bytes`)
 
             // Add to IndexedDB upload queue (async)
             try {
@@ -392,6 +393,7 @@ export function useRecordingManager(): RecordingManager {
                 blob,
                 mimeType
               )
+              console.log(`[Recording] Chunk ${currentPartIndex} added to upload queue`)
             } catch (error) {
               console.error('Failed to queue chunk for upload:', error)
               setState((prev) => ({
