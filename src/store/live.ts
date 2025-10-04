@@ -146,6 +146,11 @@ export const useLiveStore = create<LiveState>((set, get) => ({
         if (isBroadcaster && newUser.role === 'viewer') {
           const existingConnection = peerConnections.get(key)
           if (!existingConnection) {
+            console.log('[BROADCASTER] Creating peer connection for viewer:', {
+              presenceKey: key,
+              viewerUserId: newUser.userId,
+              existingConnections: Array.from(peerConnections.keys()),
+            })
             get().createPeerConnection(key, 'viewer', newUser.userId)
           }
         }
@@ -384,6 +389,14 @@ export const useLiveStore = create<LiveState>((set, get) => ({
     // If not found and we're broadcaster, try mapping userId to presence key
     if (!conn && isBroadcaster) {
       const presenceKey = userIdToPresenceKey.get(signal.from)
+      console.log('[BROADCASTER] Received signal - looking up peer connection:', {
+        signalType: signal.type,
+        signalFrom: signal.from,
+        signalTo: signal.to,
+        presenceKeyFromMap: presenceKey,
+        availableConnections: Array.from(peerConnections.keys()),
+        userIdToPresenceKeyMap: Array.from(userIdToPresenceKey.entries()),
+      })
       if (presenceKey) {
         conn = peerConnections.get(presenceKey)
       }
