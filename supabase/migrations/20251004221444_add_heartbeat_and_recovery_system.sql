@@ -1,3 +1,11 @@
+-- Add new recording statuses for recovery
+ALTER TABLE recordings
+  DROP CONSTRAINT IF EXISTS recordings_status_check;
+
+ALTER TABLE recordings
+  ADD CONSTRAINT recordings_status_check
+  CHECK (status IN ('recording', 'uploading', 'processing', 'completed', 'ready', 'failed', 'needs_recovery', 'recovered'));
+
 -- Add heartbeat column to live_sessions table for automatic timeout
 ALTER TABLE live_sessions
   ADD COLUMN IF NOT EXISTS last_heartbeat TIMESTAMPTZ DEFAULT now();
@@ -95,7 +103,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger to auto-cleanup on heartbeat updates
+-- Drop and recreate trigger to auto-cleanup on heartbeat updates
+DROP TRIGGER IF EXISTS trigger_cleanup_stale_sessions ON live_sessions;
 CREATE TRIGGER trigger_cleanup_stale_sessions
     AFTER UPDATE OF last_heartbeat ON live_sessions
     FOR EACH STATEMENT
